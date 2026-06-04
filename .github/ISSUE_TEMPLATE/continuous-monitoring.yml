@@ -1,0 +1,24 @@
+name: Continuous monitoring interest
+description: Register interest in toolprint watching your fleet — continuous re-scans, drift alerts, a team dashboard.
+title: "[monitoring] "
+labels: ["continuous-monitoring"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        One-off CLI scans are step one. We're exploring **continuous monitoring** across your repos and servers — drift alerts when a server changes in production, and a team dashboard instead of per-run CLI output. Tell us about your use case so we build the right thing.
+  - type: textarea
+    id: usecase
+    attributes:
+      label: What would you want continuous monitoring to do for you?
+    validations:
+      required: true
+  - type: input
+    id: scale
+    attributes:
+      label: Roughly how many MCP servers / repos would this cover?
+  - type: input
+    id: contact
+    attributes:
+      label: How can we reach you? (optional)
+      description: Email or GitHub handle, if you're open to a short conversation.

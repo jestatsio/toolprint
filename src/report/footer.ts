@@ -1,11 +1,13 @@
 /**
- * Validation instruments. These links are how the probe measures the *business*
- * thesis, not vanity metrics — so they are shown only when there's a finding.
+ * Validation instruments — shown only when there's a finding, so they measure
+ * the *business* thesis (is the rug-pull/poisoning problem real to you, and do
+ * you want this watching your whole fleet?) rather than vanity metrics.
  *
- * TODO(week 3): point these at hosted signal pages once they exist:
- *   - FEEDBACK_URL  -> https://toolprint.dev/r/<event_id>  ("real issue or false positive?")
- *   - TEAMS_URL     -> https://toolprint.dev/teams         (continuous-monitoring fake-door)
- * Until then they point at the repo so we never ship a dead link.
+ * Both open a structured GitHub issue form: FEEDBACK_URL collects false-positive
+ * and missed-detection reports (the precision signal); TEAMS_URL is the
+ * fake-door that captures demand for the not-yet-built continuous-monitoring
+ * product. The forms live in .github/ISSUE_TEMPLATE/.
  */
-export const FEEDBACK_URL = "https://github.com/jestatsio/toolprint/issues/new?labels=feedback";
-export const TEAMS_URL = "https://github.com/jestatsio/toolprint#continuous-monitoring";
+const ISSUE_NEW = "https://github.com/jestatsio/toolprint/issues/new?template=";
+export const FEEDBACK_URL = `${ISSUE_NEW}false-positive.yml`;
+export const TEAMS_URL = `${ISSUE_NEW}continuous-monitoring.yml`;
