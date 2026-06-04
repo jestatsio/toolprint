@@ -13,7 +13,15 @@ function tool(name: string, description: string): Capability {
 }
 
 function server(id: string, tools: Capability[]): ServerCapabilities {
-  return { id, transport: "stdio", source: `cmd ${id}`, tools, prompts: [], resources: [] };
+  return {
+    id,
+    transport: "stdio",
+    source: `cmd ${id}`,
+    tools,
+    prompts: [],
+    resources: [],
+    resourceTemplates: [],
+  };
 }
 
 describe("mergeLockfile", () => {

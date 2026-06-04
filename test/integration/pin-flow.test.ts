@@ -199,4 +199,25 @@ describe("pin/update flow (live stdio MCP server)", () => {
     expect(scan.hadOperationalError).toBe(true);
     expect(scan.results[0]?.error).toMatch(/nested deeper/);
   });
+
+  it("enumerates, scans, and pins resource templates", async () => {
+    const scan = await scanTargets([target({ TOOLPRINT_TEST_TEMPLATE: "1" })], null, {
+      timeoutMs: TIMEOUT,
+    });
+    // Templates round-trip connect -> list -> normalize...
+    expect(scan.results[0]?.server?.resourceTemplates.map((t) => t.name)).toContain("file-by-path");
+    // ...are scanned for poisoning, flagged with their own kind...
+    const poison = scan.findings.find(
+      (f) => f.checkId === "tool-poisoning" && f.capability?.kind === "resourceTemplate",
+    );
+    expect(poison?.severity).toBe("high");
+    expect(poison?.capability?.name).toBe("file-by-path");
+    // ...and are pinned into the lockfile so a re-scan reports no drift.
+    const lock = mergeLockfile(null, scannedServers(scan.results), "now");
+    expect(lock.servers.mock?.resourceTemplates["file-by-path"]).toBeDefined();
+    const rescan = await scanTargets([target({ TOOLPRINT_TEST_TEMPLATE: "1" })], lock, {
+      timeoutMs: TIMEOUT,
+    });
+    expect(rescan.findings.filter((f) => f.checkId === "rug-pull")).toHaveLength(0);
+  });
 });

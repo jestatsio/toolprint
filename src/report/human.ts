@@ -2,7 +2,7 @@ import { RUG_PULL_CHECK_ID } from "../checks/rugpull.js";
 import type { Finding, Severity } from "../checks/types.js";
 import { SEVERITY_ORDER } from "../checks/types.js";
 import type { KindDiff, ServerDiff } from "../lockfile/diff.js";
-import type { CapabilityKind, ServerCapabilities } from "../model.js";
+import { type CapabilityKind, kindLabel, type ServerCapabilities } from "../model.js";
 import type { ScanResult, ServerScanResult } from "../scan.js";
 import { TOOLPRINT_VERSION } from "../version.js";
 import { FEEDBACK_URL, TEAMS_URL } from "./footer.js";
@@ -89,6 +89,9 @@ function capabilitySummary(server: ServerCapabilities): string {
   if (server.tools.length) parts.push(pluralize(server.tools.length, "tool"));
   if (server.prompts.length) parts.push(pluralize(server.prompts.length, "prompt"));
   if (server.resources.length) parts.push(pluralize(server.resources.length, "resource"));
+  if (server.resourceTemplates.length) {
+    parts.push(pluralize(server.resourceTemplates.length, "resource template"));
+  }
   return parts.length ? parts.join(", ") : "no capabilities";
 }
 
@@ -127,7 +130,7 @@ function renderDiff(p: Palette, before: string | undefined, after: string | unde
 function renderFinding(p: Palette, finding: Finding): string[] {
   const tag = severityColor(p, finding.severity)(p.bold(SEVERITY_TAG[finding.severity]));
   const location = finding.capability
-    ? `${finding.serverId} ${p.gray("·")} ${finding.capability.kind} "${finding.capability.name}"`
+    ? `${finding.serverId} ${p.gray("·")} ${kindLabel(finding.capability.kind)} "${finding.capability.name}"`
     : finding.serverId;
   const lines: string[] = [`  ${tag} ${p.gray(finding.checkId)}  ${location}`];
   lines.push(`      ${finding.title}`);
@@ -137,12 +140,13 @@ function renderFinding(p: Palette, finding: Finding): string[] {
   return lines;
 }
 
-const PIN_KINDS: CapabilityKind[] = ["tool", "prompt", "resource"];
+const PIN_KINDS: CapabilityKind[] = ["tool", "prompt", "resource", "resourceTemplate"];
 
 function kindDiffOf(diff: ServerDiff, kind: CapabilityKind): KindDiff {
   if (kind === "tool") return diff.tool;
   if (kind === "prompt") return diff.prompt;
-  return diff.resource;
+  if (kind === "resource") return diff.resource;
+  return diff.resourceTemplate;
 }
 
 /** Calm "here's what I just pinned" view of a server's accepted drift. Unlike a
@@ -163,22 +167,23 @@ function renderServerPin(p: Palette, result: ServerScanResult): string[] {
 
   const lines: string[] = [];
   for (const kind of PIN_KINDS) {
+    const label = kindLabel(kind);
     const kindDiff = kindDiffOf(diff, kind);
     for (const change of kindDiff.changed) {
       const what = change.descriptionChanged
         ? "description updated"
         : "definition updated (schema/metadata)";
-      lines.push(`  ${id} ${p.gray("·")} ${kind} "${change.name}" ${p.gray(what)}`);
+      lines.push(`  ${id} ${p.gray("·")} ${label} "${change.name}" ${p.gray(what)}`);
       if (change.descriptionChanged) {
         lines.push(...renderDiff(p, change.before.description, change.after.description));
       }
     }
     for (const removed of kindDiff.removed) {
-      lines.push(`  ${id} ${p.gray("·")} ${kind} "${removed.name}" ${p.gray("removed")}`);
+      lines.push(`  ${id} ${p.gray("·")} ${label} "${removed.name}" ${p.gray("removed")}`);
     }
     if (kindDiff.added.length > 0) {
       lines.push(
-        `  ${id} ${p.gray("·")} ${p.gray(`+${pluralize(kindDiff.added.length, `new ${kind}`)}`)}`,
+        `  ${id} ${p.gray("·")} ${p.gray(`+${pluralize(kindDiff.added.length, `new ${label}`)}`)}`,
       );
     }
   }

@@ -6,7 +6,19 @@
 
 export type TransportKind = "stdio" | "sse" | "http";
 
-export type CapabilityKind = "tool" | "prompt" | "resource";
+export type CapabilityKind = "tool" | "prompt" | "resource" | "resourceTemplate";
+
+/** Human-readable label for a kind (the raw kind value stays machine-friendly). */
+const KIND_LABELS: Record<CapabilityKind, string> = {
+  tool: "tool",
+  prompt: "prompt",
+  resource: "resource",
+  resourceTemplate: "resource template",
+};
+
+export function kindLabel(kind: CapabilityKind): string {
+  return KIND_LABELS[kind];
+}
 
 /**
  * A normalized MCP capability. `raw` is the full object as returned by the
@@ -15,7 +27,8 @@ export type CapabilityKind = "tool" | "prompt" | "resource";
  */
 export interface Capability {
   kind: CapabilityKind;
-  /** Unique key within its kind: tool/prompt name, or resource uri. */
+  /** Unique key within its kind: tool/prompt name, resource uri, or resource
+   * template name. */
   name: string;
   title?: string;
   description?: string;
@@ -47,6 +60,12 @@ export interface ServerCapabilities {
   tools: Capability[];
   prompts: Capability[];
   resources: Capability[];
+  resourceTemplates: Capability[];
 }
 
-export const CAPABILITY_KINDS: CapabilityKind[] = ["tool", "prompt", "resource"];
+export const CAPABILITY_KINDS: CapabilityKind[] = [
+  "tool",
+  "prompt",
+  "resource",
+  "resourceTemplate",
+];

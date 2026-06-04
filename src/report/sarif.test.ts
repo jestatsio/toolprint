@@ -24,6 +24,7 @@ function scanWith(findings: Finding[]): ScanResult {
       tools: [],
       prompts: [],
       resources: [],
+      resourceTemplates: [],
     },
     findings,
   };

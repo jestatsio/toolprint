@@ -18,13 +18,13 @@ Scanners exist for the one-shot check. What's missing is making trust **part of 
 
 ## What it does
 
-`toolprint scan <target>` connects to your MCP server(s), lists every tool/prompt/resource (it never _calls_ a tool), and runs three checks:
+`toolprint scan <target>` connects to your MCP server(s), lists every tool, prompt, resource, and resource template (it never _calls_ a tool), and runs three checks:
 
-| Check              | Catches                                                                                                                                                                                                                                                        |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Rug-pull**       | A tool/prompt/resource definition that changed since you pinned it — the headline being a changed **description** (the classic tool-poisoning vector).                                                                                                         |
-| **Tool poisoning** | Instruction-injection hidden anywhere an agent reads — the description, title, schema fields, or prompt arguments of any tool, **prompt, or resource** ("ignore previous instructions", "don't tell the user", exfiltration phrasing, invisible/bidi unicode). |
-| **Secret leak**    | Live-looking credentials embedded in your MCP config (`env`, `headers`, `url`) — always **redacted** in output.                                                                                                                                                |
+| Check              | Catches                                                                                                                                                                                                                                                                           |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Rug-pull**       | A tool, prompt, resource, or resource-template definition that changed since you pinned it — the headline being a changed **description** (the classic tool-poisoning vector).                                                                                                    |
+| **Tool poisoning** | Instruction-injection hidden anywhere an agent reads — the description, title, schema fields, or prompt arguments of any tool, **prompt, resource, or resource template** ("ignore previous instructions", "don't tell the user", exfiltration phrasing, invisible/bidi unicode). |
+| **Secret leak**    | Live-looking credentials embedded in your MCP config (`env`, `headers`, `url`) — always **redacted** in output.                                                                                                                                                                   |
 
 ## Quick start
 

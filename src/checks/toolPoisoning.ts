@@ -1,5 +1,5 @@
 import { MAX_JSON_DEPTH } from "../limits.js";
-import type { Capability, CapabilityKind } from "../model.js";
+import { type Capability, type CapabilityKind, kindLabel } from "../model.js";
 import type { Check, CheckInput, Finding, Severity } from "./types.js";
 
 interface Pattern {
@@ -134,9 +134,9 @@ function inspect(capability: Capability, kind: CapabilityKind, serverId: string)
           severity: pattern.severity,
           serverId,
           capability: { kind, name: capability.name },
-          title: `${pattern.label} in ${kind} "${capability.name}"`,
+          title: `${pattern.label} in ${kindLabel(kind)} "${capability.name}"`,
           detail:
-            `This text is read by the model when it works with this ${kind}. ` +
+            `This text is read by the model when it works with this ${kindLabel(kind)}. ` +
             "Embedded instructions can hijack an agent (prompt injection / tool poisoning).",
           evidence: `${source.where}: ${snippet(source.text, match.index, match[0].length)}`,
           remediation:
@@ -150,7 +150,7 @@ function inspect(capability: Capability, kind: CapabilityKind, serverId: string)
         severity: "high",
         serverId,
         capability: { kind, name: capability.name },
-        title: `Hidden/invisible unicode in ${kind} "${capability.name}"`,
+        title: `Hidden/invisible unicode in ${kindLabel(kind)} "${capability.name}"`,
         detail:
           "This text contains zero-width or bidirectional-control characters, which can hide " +
           "instructions from a human reviewer while the model still reads them.",
@@ -165,7 +165,7 @@ function inspect(capability: Capability, kind: CapabilityKind, serverId: string)
         severity: "low",
         serverId,
         capability: { kind, name: capability.name },
-        title: `Encoded blob in ${kind} "${capability.name}"`,
+        title: `Encoded blob in ${kindLabel(kind)} "${capability.name}"`,
         detail: "A long base64-like run in this text is unusual and can carry a hidden payload.",
         evidence: `${source.where}: ${snippet(source.text, blob.index, Math.min(blob[0].length, 24))}`,
         remediation: "Decode and verify the blob is benign.",
@@ -183,6 +183,9 @@ export const toolPoisoningCheck: Check = {
     for (const prompt of server.prompts) findings.push(...inspect(prompt, "prompt", server.id));
     for (const resource of server.resources) {
       findings.push(...inspect(resource, "resource", server.id));
+    }
+    for (const template of server.resourceTemplates) {
+      findings.push(...inspect(template, "resourceTemplate", server.id));
     }
     return findings;
   },

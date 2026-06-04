@@ -9,7 +9,15 @@ function tool(name: string, description: string, extra: Record<string, unknown> 
 }
 
 function server(tools: Capability[]): ServerCapabilities {
-  return { id: "srv", transport: "stdio", source: "test", tools, prompts: [], resources: [] };
+  return {
+    id: "srv",
+    transport: "stdio",
+    source: "test",
+    tools,
+    prompts: [],
+    resources: [],
+    resourceTemplates: [],
+  };
 }
 
 describe("diffServer", () => {

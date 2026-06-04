@@ -130,7 +130,12 @@ export const secretLeakCheck: Check = {
     }
 
     // Also scan capability descriptions for accidentally-embedded keys.
-    const caps = [...server.tools, ...server.prompts, ...server.resources];
+    const caps = [
+      ...server.tools,
+      ...server.prompts,
+      ...server.resources,
+      ...server.resourceTemplates,
+    ];
     for (const cap of caps) {
       if (!cap.description) continue;
       const prefixFindings = matchPrefix(
