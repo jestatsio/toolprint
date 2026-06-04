@@ -4,6 +4,26 @@ All notable changes to toolprint are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Authentication for remote targets.** `scan`/`pin` can now reach
+  authenticated `http(s)`/`sse` MCP servers — hosted gateways and your own
+  staging/prod deployments — instead of only unauthenticated ones.
+  - `--bearer <token>` sends `Authorization: Bearer <token>`.
+  - `--header "Name: Value"` (repeatable) sends arbitrary headers (API keys,
+    custom gateway headers, …).
+  - `TOOLPRINT_BEARER` and `TOOLPRINT_HEADER_*` pass the same through the
+    environment, keeping secrets out of shell history, process listings, and CI
+    logs. In the GitHub Action, set them via `env:` — no new input needed.
+  - Config-file `headers` on `http`/`sse` entries are honored; CLI/env auth is
+    layered on top and wins on a name clash.
+  - Runtime auth is treated as an intentional credential: it is **never written
+    to the lockfile** and **never flagged by the secret-leak check** (a secret
+    hard-coded into a committed config's `headers` still is). The lockfile pins
+    tool definitions only.
+
 ## [0.1.0] - 2026-06-04
 
 Initial release. toolprint is **`package-lock.json` for MCP trust** — it scans
@@ -40,4 +60,5 @@ rug-pulls, and pins what you trust into a committed, reviewable `toolprint.lock`
 - **Hardening.** Recursive walkers over untrusted server JSON are depth-bounded,
   so a hostile server cannot crash a scan with a pathologically nested response.
 
+[Unreleased]: https://github.com/jestatsio/toolprint/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/jestatsio/toolprint/releases/tag/v0.1.0

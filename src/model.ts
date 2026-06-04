@@ -49,7 +49,14 @@ export interface ServerTarget {
   env?: Record<string, string>;
   // sse / http
   url?: string;
+  /** Headers declared in a config file. May be committed, so they are scanned
+   * for leaked secrets. */
   headers?: Record<string, string>;
+  /** Auth headers injected at run time via CLI/env (`--header`, `--bearer`,
+   * `TOOLPRINT_BEARER`, `TOOLPRINT_HEADER_*`). Merged over {@link headers} at
+   * connect time; intentional runtime credentials, so they are never scanned for
+   * secret leaks nor written to the lockfile. */
+  authHeaders?: Record<string, string>;
 }
 
 /** Result of connecting to a server and listing all its capabilities. */

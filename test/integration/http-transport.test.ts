@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { applyAuthHeaders, collectAuthHeaders } from "../../src/connect/auth.js";
 import { resolveTargets } from "../../src/connect/target.js";
 import type { ServerTarget } from "../../src/model.js";
 import { scanTargets } from "../../src/scan.js";
@@ -57,6 +58,53 @@ describe("http (Streamable HTTP) transport", () => {
     const scan = await scanTargets(targets, null, { timeoutMs: TIMEOUT });
     expect(scan.hadOperationalError).toBe(true);
     expect(scan.results[0]?.server).toBeUndefined();
+  });
+});
+
+describe("http transport with auth", () => {
+  const TOKEN = "s3cr3t-token";
+  let server: Awaited<ReturnType<typeof startHttpMockServer>>;
+
+  beforeAll(async () => {
+    server = await startHttpMockServer({ auth: TOKEN });
+  });
+  afterAll(async () => {
+    await server.close();
+  });
+
+  it("fails to reach an authenticated server with no credentials", async () => {
+    const scan = await scanTargets(resolveTargets(server.url, {}, process.cwd()), null, {
+      timeoutMs: TIMEOUT,
+    });
+    expect(scan.hadOperationalError).toBe(true);
+    expect(scan.results[0]?.server).toBeUndefined();
+  });
+
+  it("authenticates with --bearer and enumerates the tool surface", async () => {
+    // The full CLI path: resolve the URL, then layer the bearer token on.
+    const authHeaders = collectAuthHeaders({ bearer: TOKEN }, {});
+    const targets = applyAuthHeaders(resolveTargets(server.url, {}, process.cwd()), authHeaders);
+
+    const scan = await scanTargets(targets, null, { timeoutMs: TIMEOUT });
+    expect(scan.hadOperationalError).toBe(false);
+    expect(scan.results[0]?.server?.tools.map((t) => t.name)).toContain("read_file");
+  });
+
+  it("authenticates with a raw --header too", async () => {
+    const authHeaders = collectAuthHeaders({ header: [`Authorization: Bearer ${TOKEN}`] }, {});
+    const targets = applyAuthHeaders(resolveTargets(server.url, {}, process.cwd()), authHeaders);
+
+    const scan = await scanTargets(targets, null, { timeoutMs: TIMEOUT });
+    expect(scan.hadOperationalError).toBe(false);
+    expect(scan.results[0]?.server?.tools.map((t) => t.name)).toContain("read_file");
+  });
+
+  it("a wrong token is rejected (auth is actually enforced on the wire)", async () => {
+    const authHeaders = collectAuthHeaders({ bearer: "wrong" }, {});
+    const targets = applyAuthHeaders(resolveTargets(server.url, {}, process.cwd()), authHeaders);
+
+    const scan = await scanTargets(targets, null, { timeoutMs: TIMEOUT });
+    expect(scan.hadOperationalError).toBe(true);
   });
 });
 

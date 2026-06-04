@@ -81,6 +81,14 @@ describe("secretLeakCheck — detection (must fire on planted secrets)", () => {
     expect(findings.some((f) => f.severity === "high")).toBe(true);
   });
 
+  it("does NOT scan runtime auth headers (intentional, never committed)", () => {
+    // The same token in a config `headers` entry fires; in `authHeaders`
+    // (supplied via --bearer/--header/env at run time) it must not.
+    const token = "Bearer ghp_abcdefghijklmnopqrstuvwxyz0123456789";
+    expect(run({ headers: { Authorization: token } }).length).toBeGreaterThan(0);
+    expect(run({ authHeaders: { Authorization: token } })).toHaveLength(0);
+  });
+
   it("flags a high-entropy value as a probable secret (medium)", () => {
     const findings = run({ env: { SESSION: "Zx9Kq2Lm8Wp4Rt6Yv0Bn3Cd5Ef7Gh1Jk" } });
     expect(findings.some((f) => f.severity === "medium")).toBe(true);

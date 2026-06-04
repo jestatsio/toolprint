@@ -46,6 +46,27 @@ npx toolprint scan ~/Library/Application\ Support/Claude/claude_desktop_config.j
 
 Run with no target inside a project and toolprint auto-discovers `mcp.json`, `.vscode/mcp.json`, or `.cursor/mcp.json`.
 
+## Authenticated remote servers
+
+Most real remote MCP servers — hosted gateways and your own staging/prod deployments — sit behind auth. Pass credentials with `--bearer` or `--header` (repeatable):
+
+```bash
+npx toolprint scan https://mcp.example.com/mcp --bearer "$MCP_TOKEN"
+npx toolprint scan https://mcp.example.com/mcp --header "X-Api-Key: $KEY" --header "X-Tenant: acme"
+```
+
+To keep secrets out of shell history and process listings (`ps`, CI logs), pass them through the environment instead — read directly, never placed on the command line:
+
+```bash
+export TOOLPRINT_BEARER="$MCP_TOKEN"          # → Authorization: Bearer …
+export TOOLPRINT_HEADER_X_API_KEY="$KEY"      # → X-API-KEY: …  (underscores become hyphens)
+npx toolprint scan https://mcp.example.com/mcp
+```
+
+When you scan a **config file**, declared `headers` on each `http`/`sse` entry are honored too, so multi-server auth can stay declarative. `--bearer`/`--header`/env values are layered on top (and win on a name clash).
+
+Auth supplied this way is treated as an intentional runtime credential: it is **never written to the lockfile** and **never flagged by the secret-leak check**. (A live-looking secret hard-coded into a committed config's `headers` still is — that's the leak worth catching.) The lockfile pins tool **definitions** only.
+
 ## The rug-pull, caught
 
 After you've pinned a server, if a tool's description changes, `scan` shows the diff and fails:
@@ -76,6 +97,17 @@ In CI, that's a failed check. In a PR, re-pinning produces a `toolprint.lock` di
 ```
 
 The build fails if a scan finds anything at or above `fail-on`, including drift from your committed `toolprint.lock`.
+
+To scan an authenticated server, pass the token through the environment — the Action inherits it, so it never appears in the workflow command or logs:
+
+```yaml
+- uses: jestatsio/toolprint@v1
+  env:
+    TOOLPRINT_BEARER: ${{ secrets.MCP_TOKEN }}
+  with:
+    target: https://mcp.example.com/mcp
+    fail-on: high
+```
 
 ### GitHub code scanning (SARIF)
 
@@ -137,6 +169,8 @@ toolprint pin  [target]      Pin current definitions (alias for scan --update)
   --sarif             SARIF 2.1.0 output for GitHub code scanning
   --lockfile <path>   Lockfile location (default: nearest toolprint.lock)
   --timeout <ms>      Per-server timeout (default: 30000)
+  --header <h>        Add an HTTP header to http(s)/sse targets (repeatable)
+  --bearer <token>    Shorthand for --header "Authorization: Bearer <token>"
   --no-telemetry      Disable anonymous usage telemetry
   --no-color          Disable colored output
 ```
