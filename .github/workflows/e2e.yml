@@ -1,0 +1,22 @@
+name: E2E (real MCP server)
+
+# Smoke-tests toolprint against a real published MCP server downloaded via npx.
+# Kept out of the per-PR `ci` workflow because it needs network and can flake on
+# npm; runs nightly and on demand so a real-world regression still gets caught.
+on:
+  schedule:
+    - cron: "0 7 * * *" # daily ~07:00 UTC
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:e2e
