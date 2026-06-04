@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, parse as parsePath, relative } from "node:path";
 import { OperationalError } from "../errors.js";
+import { MAX_JSON_DEPTH } from "../limits.js";
 import type { Capability, ServerCapabilities } from "../model.js";
 import { TOOLPRINT_VERSION } from "../version.js";
 import { hashCapability } from "./hash.js";
@@ -154,13 +155,21 @@ function contentKey(lockfile: Lockfile): string {
   });
 }
 
-function stableStringify(value: unknown): string {
+function stableStringify(value: unknown, depth = 0): string {
+  if (depth > MAX_JSON_DEPTH) {
+    throw new OperationalError(
+      `Lockfile content nested deeper than ${MAX_JSON_DEPTH} levels — refusing to process a pathological structure.`,
+    );
+  }
   if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  // NB: wrap the recursion — Array.map would otherwise pass the index as `depth`.
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item, depth + 1)).join(",")}]`;
+  }
   const obj = value as Record<string, unknown>;
   const entries = Object.keys(obj)
     .sort()
-    .map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key])}`);
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key], depth + 1)}`);
   return `{${entries.join(",")}}`;
 }
 

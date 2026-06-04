@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { OperationalError } from "../errors.js";
+import { MAX_JSON_DEPTH } from "../limits.js";
 
 /**
  * Canonical, deterministic serialization of a JSON-compatible value.
@@ -15,16 +17,22 @@ export function canonicalize(value: unknown): string {
   return JSON.stringify(normalize(value));
 }
 
-function normalize(value: unknown): unknown {
+function normalize(value: unknown, depth = 0): unknown {
+  if (depth > MAX_JSON_DEPTH) {
+    throw new OperationalError(
+      `Definition nested deeper than ${MAX_JSON_DEPTH} levels — refusing to hash a pathological response.`,
+    );
+  }
   if (typeof value === "string") return value.normalize("NFC");
   // null, number, boolean, undefined pass through (matches JSON.stringify).
   if (value === null || typeof value !== "object") return value;
-  if (Array.isArray(value)) return value.map(normalize);
+  // NB: wrap the recursion — Array.map would otherwise pass the index as `depth`.
+  if (Array.isArray(value)) return value.map((item) => normalize(item, depth + 1));
 
   const obj = value as Record<string, unknown>;
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(obj).sort()) {
-    const normalizedValue = normalize(obj[key]);
+    const normalizedValue = normalize(obj[key], depth + 1);
     // Drop undefined-valued keys so a missing field and an explicit `undefined`
     // hash identically (JSON.stringify drops them too).
     if (normalizedValue === undefined) continue;
