@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, parse as parsePath } from "node:path";
+import { dirname, join, parse as parsePath, relative } from "node:path";
 import { OperationalError } from "../errors.js";
 import type { Capability, ServerCapabilities } from "../model.js";
 import { TOOLPRINT_VERSION } from "../version.js";
@@ -32,6 +32,13 @@ export function findLockfile(startDir: string): string | null {
 export function resolveLockfilePath(cwd: string, explicit?: string): string {
   if (explicit) return explicit;
   return findLockfile(cwd) ?? join(cwd, LOCKFILE_NAME);
+}
+
+/** Human/JSON-friendly lock path: relative when it sits under cwd, else absolute
+ * (a `../../../..` relative path to an out-of-tree lock reads worse than the path). */
+export function displayLockPath(cwd: string, lockPath: string): string {
+  const rel = relative(cwd, lockPath);
+  return rel && !rel.startsWith("..") ? rel : lockPath;
 }
 
 /** Read + validate a lockfile. Returns null if it doesn't exist. */
@@ -100,12 +107,13 @@ function sortRecord<T>(record: Record<string, T>): Record<string, T> {
   return out;
 }
 
-/** Deterministic, diff-friendly serialization: sorted server + capability keys. */
-export function serializeLockfile(lockfile: Lockfile): string {
-  const servers: Record<string, LockedServer> = {};
-  for (const id of Object.keys(lockfile.servers).sort()) {
-    const server = lockfile.servers[id] as LockedServer;
-    servers[id] = {
+/** Servers in a stable order (sorted ids + capability keys) — the comparable
+ * core of a lockfile, independent of volatile metadata. */
+function orderServers(servers: Record<string, LockedServer>): Record<string, LockedServer> {
+  const out: Record<string, LockedServer> = {};
+  for (const id of Object.keys(servers).sort()) {
+    const server = servers[id] as LockedServer;
+    out[id] = {
       transport: server.transport,
       source: server.source,
       tools: sortRecord(server.tools),
@@ -113,13 +121,47 @@ export function serializeLockfile(lockfile: Lockfile): string {
       resources: sortRecord(server.resources),
     };
   }
+  return out;
+}
+
+/** Deterministic, diff-friendly serialization: sorted server + capability keys. */
+export function serializeLockfile(lockfile: Lockfile): string {
   const ordered: Lockfile = {
     lockfileVersion: lockfile.lockfileVersion,
     toolprintVersion: lockfile.toolprintVersion,
     generatedAt: lockfile.generatedAt,
-    servers,
+    servers: orderServers(lockfile.servers),
   };
   return JSON.stringify(ordered, null, 2) + "\n";
+}
+
+/**
+ * True when two lockfiles pin identical content, ignoring volatile metadata
+ * (`generatedAt`, `toolprintVersion`). Lets `--update` skip a no-op write so
+ * re-running pin never churns the committed lockfile's timestamp.
+ */
+export function lockedContentEquals(a: Lockfile, b: Lockfile): boolean {
+  return contentKey(a) === contentKey(b);
+}
+
+function contentKey(lockfile: Lockfile): string {
+  // Order-independent: every object key is sorted recursively, so equality
+  // depends only on values — never on field or scan order (a disk-read lock and
+  // a freshly-merged one compare equal when their content matches).
+  return stableStringify({
+    lockfileVersion: lockfile.lockfileVersion,
+    servers: lockfile.servers,
+  });
+}
+
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  const obj = value as Record<string, unknown>;
+  const entries = Object.keys(obj)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key])}`);
+  return `{${entries.join(",")}}`;
 }
 
 export function writeLockfile(path: string, lockfile: Lockfile): void {

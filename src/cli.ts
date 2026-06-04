@@ -1,9 +1,17 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { meetsThreshold, SEVERITIES, type Severity } from "./checks/types.js";
+import { SEVERITIES, type Severity } from "./checks/types.js";
 import { resolveTargets } from "./connect/target.js";
 import { getErrorMessage, OperationalError } from "./errors.js";
-import { mergeLockfile, readLockfile, resolveLockfilePath, writeLockfile } from "./lockfile/io.js";
+import {
+  displayLockPath,
+  lockedContentEquals,
+  mergeLockfile,
+  readLockfile,
+  resolveLockfilePath,
+  writeLockfile,
+} from "./lockfile/io.js";
+import { exitCodeFor, isFailing } from "./outcome.js";
 import { renderHuman } from "./report/human.js";
 import { buildJsonReport, renderJson } from "./report/json.js";
 import { scanTargets } from "./scan.js";
@@ -28,13 +36,6 @@ function parseSeverity(value: string): Severity {
   );
 }
 
-/** Exit codes are a documented contract — CI configs depend on them. */
-function exitCodeFor(failing: boolean, hadOperationalError: boolean): number {
-  if (failing) return 2; // findings at/above --fail-on, or drift
-  if (hadOperationalError) return 1; // couldn't connect/parse
-  return 0;
-}
-
 async function runScan(target: string | undefined, options: ScanCliOptions): Promise<void> {
   const cwd = process.cwd();
   const failOn = parseSeverity(options.failOn);
@@ -54,23 +55,32 @@ async function runScan(target: string | undefined, options: ScanCliOptions): Pro
     probeOutputs: Boolean(options.probe),
   });
 
-  if (options.update) {
+  const update = Boolean(options.update);
+  let wrote = false;
+  if (update) {
     const scannedServers = scan.results.flatMap((result) => (result.server ? [result.server] : []));
     const next = mergeLockfile(lockfile, scannedServers, new Date().toISOString());
-    writeLockfile(lockPath, next);
+    // Skip a no-op write so re-pinning never churns the committed lockfile's timestamp.
+    if (lockfile === null || !lockedContentEquals(lockfile, next)) {
+      writeLockfile(lockPath, next);
+      wrote = true;
+    }
   }
 
+  const failing = isFailing(scan.findings, { failOn, update });
+  const lockDisplay = displayLockPath(cwd, lockPath);
+
   if (options.json) {
-    process.stdout.write(renderJson(buildJsonReport(scan)));
+    const updateSummary = update ? { lockfile: lockDisplay, wrote, failed: failing } : undefined;
+    process.stdout.write(renderJson(buildJsonReport(scan, updateSummary)));
   } else {
     const color =
       options.color !== false &&
       process.stdout.isTTY === true &&
       process.env.NO_COLOR === undefined;
-    process.stdout.write(renderHuman(scan, { color, lockPath, updated: Boolean(options.update) }));
+    process.stdout.write(renderHuman(scan, { color, lockDisplay, updated: update, wrote }));
   }
 
-  const failing = scan.findings.some((finding) => meetsThreshold(finding.severity, failOn));
   process.exitCode = exitCodeFor(failing, scan.hadOperationalError);
 }
 
