@@ -1,12 +1,15 @@
 name: Publish to npm
 
-# Publishes toolprint to npm when a GitHub Release is published. The package is
-# shipped with provenance (a signed supply-chain attestation) — fitting for a
-# supply-chain trust tool. `prepublishOnly` re-runs typecheck + tests + build,
-# so a release can never ship broken code.
+# Publishes toolprint to npm via OIDC trusted publishing — no NPM_TOKEN to leak
+# or rotate, and provenance (a signed supply-chain attestation) is automatic.
+# Fitting for a supply-chain trust tool. `prepublishOnly` re-runs typecheck +
+# tests + build, so a release can never ship broken code.
 #
-# Requires an `NPM_TOKEN` repo secret (an npm automation/granular token with
-# publish rights), or configure npm trusted publishing for this repo.
+# One-time setup (trusted publishing needs the package to already exist):
+#   1. Bootstrap the first publish once (e.g. `npm publish` locally).
+#   2. On npmjs.com → the toolprint package → Settings → Trusted Publisher, add
+#      this repo and workflow filename (release.yml), allowed action "npm publish".
+#   3. Every release after publishes here with no token.
 on:
   release:
     types: [published]
@@ -14,7 +17,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write # required for npm provenance via OIDC
+  id-token: write # OIDC token for npm trusted publishing (provenance is automatic)
 
 jobs:
   publish:
@@ -23,10 +26,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           registry-url: "https://registry.npmjs.org"
           cache: "npm"
+      # Trusted publishing requires npm >= 11.5.1; Node bundles an older npm.
+      - run: npm install -g npm@latest
       - run: npm ci
-      - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: npm publish
