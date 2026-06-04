@@ -80,7 +80,8 @@ const RULE_ORDER = ["rug-pull", "tool-poisoning", "secret-leak"] as const;
 const RULE_META: Record<string, RuleMeta> = {
   "rug-pull": {
     name: "Capability drift (rug-pull)",
-    short: "A pinned tool, prompt, or resource definition changed since it was trusted.",
+    short:
+      "A pinned tool, prompt, resource, or resource template definition changed since it was trusted.",
     full:
       "Compares live MCP capabilities against the committed toolprint.lock and flags drift — " +
       "above all a changed description, the text an agent reads and the classic rug-pull vector.",
@@ -88,9 +89,11 @@ const RULE_META: Record<string, RuleMeta> = {
   },
   "tool-poisoning": {
     name: "Tool poisoning",
-    short: "Instruction-injection hidden in a tool/prompt description or schema.",
+    short:
+      "Instruction-injection hidden in the description, title, schema, or prompt arguments of a tool, prompt, resource, or resource template.",
     full:
-      "Detects prompt-injection aimed at the model inside descriptions or input-schema fields, " +
+      "Detects prompt-injection aimed at the model inside any description/title an agent reads — " +
+      "tool input/output schemas, prompt arguments, resource and resource-template metadata — " +
       "including invisible and bidirectional-control unicode.",
     securitySeverity: "8.5",
   },

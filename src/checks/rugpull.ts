@@ -1,5 +1,5 @@
 import type { KindDiff } from "../lockfile/diff.js";
-import type { CapabilityKind } from "../model.js";
+import { type CapabilityKind, kindLabel } from "../model.js";
 import type { Check, CheckInput, Finding } from "./types.js";
 
 /** checkId for every drift finding. Pin/update intentionally does not gate on
@@ -21,7 +21,11 @@ export const rugPullCheck: Check = {
   id: RUG_PULL_CHECK_ID,
   run({ server, diff }: CheckInput): Finding[] {
     if (diff.isUnpinned) {
-      const count = server.tools.length + server.prompts.length + server.resources.length;
+      const count =
+        server.tools.length +
+        server.prompts.length +
+        server.resources.length +
+        server.resourceTemplates.length;
       return [
         {
           checkId: RUG_PULL_CHECK_ID,
@@ -42,6 +46,7 @@ export const rugPullCheck: Check = {
       ["tool", diff.tool],
       ["prompt", diff.prompt],
       ["resource", diff.resource],
+      ["resourceTemplate", diff.resourceTemplate],
     ];
 
     for (const [kind, kindDiff] of kinds) {
@@ -52,7 +57,7 @@ export const rugPullCheck: Check = {
             severity: "high",
             serverId: server.id,
             capability: { kind, name: change.name },
-            title: `${capitalize(kind)} "${change.name}" description changed since it was pinned`,
+            title: `${capitalize(kindLabel(kind))} "${change.name}" description changed since it was pinned`,
             detail:
               "The description an agent reads changed after you trusted it — the classic rug-pull / " +
               "tool-poisoning vector. Review the diff before accepting it.",
@@ -66,7 +71,7 @@ export const rugPullCheck: Check = {
             severity: "medium",
             serverId: server.id,
             capability: { kind, name: change.name },
-            title: `${capitalize(kind)} "${change.name}" definition changed (schema/metadata) since it was pinned`,
+            title: `${capitalize(kindLabel(kind))} "${change.name}" definition changed (schema/metadata) since it was pinned`,
             detail:
               "A non-description field (input/output schema, title, annotations) changed. New parameters " +
               "can widen what data a tool receives without touching its description.",
@@ -82,7 +87,7 @@ export const rugPullCheck: Check = {
           severity: "medium",
           serverId: server.id,
           capability: { kind, name: removed.name },
-          title: `${capitalize(kind)} "${removed.name}" was pinned but is no longer offered`,
+          title: `${capitalize(kindLabel(kind))} "${removed.name}" was pinned but is no longer offered`,
           detail:
             "A capability you pinned disappeared. This can quietly break workflows or mask a swapped server.",
           remediation: "Re-pin with `toolprint scan --update` if this is intentional.",
@@ -95,7 +100,7 @@ export const rugPullCheck: Check = {
           severity: "low",
           serverId: server.id,
           capability: { kind, name: added.name },
-          title: `New unpinned ${kind} "${added.name}"`,
+          title: `New unpinned ${kindLabel(kind)} "${added.name}"`,
           detail:
             "This capability is not in the lockfile yet. New tools should be reviewed before agents rely on them.",
           remediation: "Review, then pin with `toolprint scan --update`.",

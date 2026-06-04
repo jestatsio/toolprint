@@ -27,6 +27,7 @@ export interface ServerDiff {
   tool: KindDiff;
   prompt: KindDiff;
   resource: KindDiff;
+  resourceTemplate: KindDiff;
 }
 
 function diffKind(current: Capability[], locked: Record<string, LockedCapability>): KindDiff {
@@ -70,6 +71,7 @@ export function diffServer(
     tool: diffKind(current.tools, locked?.tools ?? empty),
     prompt: diffKind(current.prompts, locked?.prompts ?? empty),
     resource: diffKind(current.resources, locked?.resources ?? empty),
+    resourceTemplate: diffKind(current.resourceTemplates, locked?.resourceTemplates ?? empty),
   };
 }
 
@@ -81,6 +83,7 @@ export function serverDiffHasChanges(diff: ServerDiff): boolean {
   return (
     kindDiffHasChanges(diff.tool) ||
     kindDiffHasChanges(diff.prompt) ||
-    kindDiffHasChanges(diff.resource)
+    kindDiffHasChanges(diff.resource) ||
+    kindDiffHasChanges(diff.resourceTemplate)
   );
 }

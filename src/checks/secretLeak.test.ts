@@ -18,12 +18,20 @@ function inputFor(target: Partial<ServerTarget>, tools: Capability[] = []): Chec
     tools,
     prompts: [],
     resources: [],
+    resourceTemplates: [],
   };
   const empty = { added: [], removed: [], changed: [] };
   return {
     target: fullTarget,
     server,
-    diff: { id: "s", isUnpinned: false, tool: empty, prompt: empty, resource: empty },
+    diff: {
+      id: "s",
+      isUnpinned: false,
+      tool: empty,
+      prompt: empty,
+      resource: empty,
+      resourceTemplate: empty,
+    },
     probeOutputs: false,
   };
 }

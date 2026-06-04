@@ -30,10 +30,11 @@ export async function connectAndList(
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const client = await connectClient(target, timeoutMs);
   try {
-    const [tools, prompts, resources] = await Promise.all([
+    const [tools, prompts, resources, resourceTemplates] = await Promise.all([
       listKind(client, target, "tool", timeoutMs),
       listKind(client, target, "prompt", timeoutMs),
       listKind(client, target, "resource", timeoutMs),
+      listKind(client, target, "resourceTemplate", timeoutMs),
     ]);
     return {
       id: target.id,
@@ -42,6 +43,7 @@ export async function connectAndList(
       tools,
       prompts,
       resources,
+      resourceTemplates,
     };
   } finally {
     await client.close().catch(() => {
@@ -116,6 +118,7 @@ const LIST_METHODS = {
   tool: "tools",
   prompt: "prompts",
   resource: "resources",
+  resourceTemplate: "resourceTemplates",
 } as const;
 
 async function listKind(
@@ -167,6 +170,17 @@ async function listPage(
     const res = await client.listPrompts(params, requestOptions);
     return {
       items: res.prompts.map((p) => normalize("prompt", p.name, p)),
+      nextCursor: res.nextCursor,
+    };
+  }
+  if (kind === "resourceTemplate") {
+    const res = await client.listResourceTemplates(params, requestOptions);
+    return {
+      // Key by name (the stable identifier); a changed uriTemplate then reads as
+      // a definition change (rug-pull), not a remove + add.
+      items: res.resourceTemplates.map((t) =>
+        normalize("resourceTemplate", String(t.name ?? t.uriTemplate), t),
+      ),
       nextCursor: res.nextCursor,
     };
   }

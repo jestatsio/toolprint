@@ -11,7 +11,15 @@ function tool(name: string, description: string): Capability {
 }
 
 function caps(tools: Capability[]): ServerCapabilities {
-  return { id: "github", transport: "stdio", source: "cmd", tools, prompts: [], resources: [] };
+  return {
+    id: "github",
+    transport: "stdio",
+    source: "cmd",
+    tools,
+    prompts: [],
+    resources: [],
+    resourceTemplates: [],
+  };
 }
 
 const RUG_PULL_TITLE = 'Tool "create_issue" description changed since it was pinned';
