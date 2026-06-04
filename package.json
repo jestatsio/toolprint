@@ -1,0 +1,57 @@
+{
+  "name": "toolprint",
+  "version": "0.1.0",
+  "description": "package-lock.json for MCP trust — scan MCP servers for tool poisoning, secret leaks, and silent tool rug-pulls, with a committed, reviewable lockfile.",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "security",
+    "scanner",
+    "lockfile",
+    "rug-pull",
+    "supply-chain",
+    "ai-agents"
+  ],
+  "license": "Apache-2.0",
+  "author": "",
+  "type": "module",
+  "bin": {
+    "toolprint": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jestatsio/toolprint.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jestatsio/toolprint/issues"
+  },
+  "homepage": "https://github.com/jestatsio/toolprint#readme",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "commander": "^15.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^3.0.0"
+  }
+}

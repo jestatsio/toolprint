@@ -1,0 +1,46 @@
+name: "toolprint scan"
+description: "Scan MCP servers for tool poisoning, secret leaks, and silent rug-pulls; enforce the committed toolprint.lock."
+branding:
+  icon: shield
+  color: purple
+
+inputs:
+  target:
+    description: "MCP config path, http(s) URL, npx:<package>, or command. Optional if a config is auto-discovered or --config is set."
+    required: false
+    default: ""
+  config:
+    description: "Path to an MCP client config file (Claude Desktop / VS Code / Cursor)."
+    required: false
+    default: ""
+  fail-on:
+    description: "Minimum severity that fails the build: info|low|medium|high|critical."
+    required: false
+    default: "high"
+  lockfile:
+    description: "Path to the toolprint.lock to enforce."
+    required: false
+    default: ""
+  version:
+    description: "toolprint version to run (npm dist-tag or exact version)."
+    required: false
+    default: "latest"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+    - name: Run toolprint scan
+      shell: bash
+      run: |
+        set -euo pipefail
+        CMD=(npx --yes "toolprint@${{ inputs.version }}" scan)
+        if [ -n "${{ inputs.target }}" ]; then CMD+=("${{ inputs.target }}"); fi
+        if [ -n "${{ inputs.config }}" ]; then CMD+=(--config "${{ inputs.config }}"); fi
+        if [ -n "${{ inputs.lockfile }}" ]; then CMD+=(--lockfile "${{ inputs.lockfile }}"); fi
+        CMD+=(--fail-on "${{ inputs.fail-on }}" --no-color --no-telemetry)
+        echo "+ ${CMD[*]}"
+        "${CMD[@]}"
