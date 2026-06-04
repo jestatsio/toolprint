@@ -85,32 +85,44 @@ function snippet(text: string, index: number, length: number): string {
   return `${start > 0 ? "…" : ""}${core}${end < text.length ? "…" : ""}`;
 }
 
-/** Pull every human-readable string (description/title) out of a JSON schema. */
-function collectSchemaText(schema: unknown, acc: string[]): void {
-  if (!schema || typeof schema !== "object") return;
-  if (Array.isArray(schema)) {
-    for (const item of schema) collectSchemaText(item, acc);
-    return;
-  }
-  const obj = schema as Record<string, unknown>;
-  if (typeof obj.description === "string") acc.push(obj.description);
-  if (typeof obj.title === "string") acc.push(obj.title);
-  for (const value of Object.values(obj)) collectSchemaText(value, acc);
-}
-
 interface TextSource {
   where: string;
   text: string;
 }
 
+/**
+ * Every human-readable string an agent might read: `description` and `title`
+ * fields anywhere in the capability — top-level, tool input/output schemas,
+ * prompt arguments, resource metadata — each tagged with its JSON path so the
+ * evidence points at exactly where an instruction hides. Treating all three
+ * capability kinds uniformly is what gives prompts and resources the same
+ * poisoning coverage as tools.
+ */
 function textSources(capability: Capability): TextSource[] {
   const sources: TextSource[] = [];
-  if (capability.description) sources.push({ where: "description", text: capability.description });
-  const schemaText: string[] = [];
-  collectSchemaText(capability.raw.inputSchema, schemaText);
-  collectSchemaText(capability.raw.outputSchema, schemaText);
-  schemaText.forEach((text, i) => sources.push({ where: `schema description #${i + 1}`, text }));
+  collectText(capability.raw, "", sources);
   return sources;
+}
+
+/** A real tool/prompt/resource definition is never deeply nested; this bounds
+ * the walk so a hostile server can't blow the stack with pathological JSON. */
+const MAX_DEPTH = 100;
+
+function collectText(value: unknown, path: string, acc: TextSource[], depth = 0): void {
+  if (depth > MAX_DEPTH || !value || typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => collectText(item, `${path}[${index}]`, acc, depth + 1));
+    return;
+  }
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    if (key === "_meta") continue; // runtime metadata, not an agent-read field
+    const childPath = path ? `${path}.${key}` : key;
+    if ((key === "description" || key === "title") && typeof child === "string") {
+      acc.push({ where: childPath, text: child });
+    } else {
+      collectText(child, childPath, acc, depth + 1);
+    }
+  }
 }
 
 function inspect(capability: Capability, kind: CapabilityKind, serverId: string): Finding[] {
@@ -126,7 +138,7 @@ function inspect(capability: Capability, kind: CapabilityKind, serverId: string)
           capability: { kind, name: capability.name },
           title: `${pattern.label} in ${kind} "${capability.name}"`,
           detail:
-            "This text is read by the model when it decides whether and how to call the tool. " +
+            `This text is read by the model when it works with this ${kind}. ` +
             "Embedded instructions can hijack an agent (prompt injection / tool poisoning).",
           evidence: `${source.where}: ${snippet(source.text, match.index, match[0].length)}`,
           remediation:
@@ -142,7 +154,7 @@ function inspect(capability: Capability, kind: CapabilityKind, serverId: string)
         capability: { kind, name: capability.name },
         title: `Hidden/invisible unicode in ${kind} "${capability.name}"`,
         detail:
-          "The description contains zero-width or bidirectional-control characters, which can hide " +
+          "This text contains zero-width or bidirectional-control characters, which can hide " +
           "instructions from a human reviewer while the model still reads them.",
         evidence: `${source.where} contains hidden control characters`,
         remediation: "Treat as malicious unless you can explain the hidden characters.",
@@ -156,8 +168,7 @@ function inspect(capability: Capability, kind: CapabilityKind, serverId: string)
         serverId,
         capability: { kind, name: capability.name },
         title: `Encoded blob in ${kind} "${capability.name}"`,
-        detail:
-          "A long base64-like run in a description is unusual and can carry a hidden payload.",
+        detail: "A long base64-like run in this text is unusual and can carry a hidden payload.",
         evidence: `${source.where}: ${snippet(source.text, blob.index, Math.min(blob[0].length, 24))}`,
         remediation: "Decode and verify the blob is benign.",
       });
@@ -172,6 +183,9 @@ export const toolPoisoningCheck: Check = {
     const findings: Finding[] = [];
     for (const tool of server.tools) findings.push(...inspect(tool, "tool", server.id));
     for (const prompt of server.prompts) findings.push(...inspect(prompt, "prompt", server.id));
+    for (const resource of server.resources) {
+      findings.push(...inspect(resource, "resource", server.id));
+    }
     return findings;
   },
 };

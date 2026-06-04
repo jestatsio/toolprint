@@ -177,4 +177,16 @@ describe("pin/update flow (live stdio MCP server)", () => {
     const next = mergeLockfile(lock, scannedServers(scan.results), "later");
     expect(lockedContentEquals(lock, next)).toBe(true);
   });
+
+  it("scans listed resources for poisoning, not only tools and prompts", async () => {
+    const scan = await scanTargets([target({ TOOLPRINT_TEST_RESOURCE: "1" })], null, {
+      timeoutMs: TIMEOUT,
+    });
+    // The resource must round-trip connect -> list -> normalize -> check.
+    const poison = scan.findings.find(
+      (f) => f.checkId === "tool-poisoning" && f.capability?.kind === "resource",
+    );
+    expect(poison?.severity).toBe("high");
+    expect(poison?.capability?.name).toBe("file:///notes");
+  });
 });
