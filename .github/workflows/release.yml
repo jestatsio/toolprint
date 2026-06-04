@@ -1,0 +1,32 @@
+name: Publish to npm
+
+# Publishes toolprint to npm when a GitHub Release is published. The package is
+# shipped with provenance (a signed supply-chain attestation) — fitting for a
+# supply-chain trust tool. `prepublishOnly` re-runs typecheck + tests + build,
+# so a release can never ship broken code.
+#
+# Requires an `NPM_TOKEN` repo secret (an npm automation/granular token with
+# publish rights), or configure npm trusted publishing for this repo.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # required for npm provenance via OIDC
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+          cache: "npm"
+      - run: npm ci
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

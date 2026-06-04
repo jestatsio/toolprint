@@ -13,10 +13,10 @@
     "ai-agents"
   ],
   "license": "Apache-2.0",
-  "author": "",
+  "author": "jestatsio",
   "type": "module",
   "bin": {
-    "toolprint": "./dist/cli.js"
+    "toolprint": "dist/cli.js"
   },
   "files": [
     "dist"
@@ -41,7 +41,7 @@
     "test:e2e": "TOOLPRINT_E2E=1 vitest run test/e2e",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.29.0",
