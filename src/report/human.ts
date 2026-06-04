@@ -1,15 +1,28 @@
-import { relative } from "node:path";
+import { RUG_PULL_CHECK_ID } from "../checks/rugpull.js";
 import type { Finding, Severity } from "../checks/types.js";
 import { SEVERITY_ORDER } from "../checks/types.js";
-import type { ServerCapabilities } from "../model.js";
+import type { KindDiff, ServerDiff } from "../lockfile/diff.js";
+import type { CapabilityKind, ServerCapabilities } from "../model.js";
 import type { ScanResult, ServerScanResult } from "../scan.js";
 import { TOOLPRINT_VERSION } from "../version.js";
 import { FEEDBACK_URL, TEAMS_URL } from "./footer.js";
 
 export interface HumanReportOptions {
   color: boolean;
-  lockPath: string;
+  /** Lockfile path to show, already made cwd-relative by the caller. */
+  lockDisplay: string;
+  /** True for `pin` / `scan --update`: drift is rendered as accepted ("Pinned")
+   * rather than as findings. */
   updated: boolean;
+  /** Whether the lockfile was actually written (false on a no-op re-pin). */
+  wrote: boolean;
+}
+
+/** Findings to display for a result. On a pin, drift is shown as the "Pinned"
+ * section instead, so it's filtered out of the findings list here. */
+function shownFindings(findings: Finding[], updated: boolean): Finding[] {
+  if (!updated) return findings;
+  return findings.filter((finding) => finding.checkId !== RUG_PULL_CHECK_ID);
 }
 
 type Colorize = (text: string) => string;
@@ -90,15 +103,15 @@ function summarizeCounts(counts: Record<Severity, number>): string {
   return parts.length ? parts.join(", ") : "clean";
 }
 
-function serverStatusLine(p: Palette, result: ServerScanResult): string {
+function serverStatusLine(p: Palette, result: ServerScanResult, findings: Finding[]): string {
   const label = `${result.target.id} ${p.gray(`(${result.target.transport})`)}`;
   if (result.error) {
     return `  ${p.red("x")} ${label} ${p.gray("-")} ${p.red(`could not connect: ${result.error}`)}`;
   }
   const caps = result.server ? capabilitySummary(result.server) : "";
-  const counts = countBySeverity(result.findings);
+  const counts = countBySeverity(findings);
   const hasHigh = counts.critical > 0 || counts.high > 0;
-  const hasFindings = result.findings.length > 0;
+  const hasFindings = findings.length > 0;
   const icon = hasHigh ? p.red("x") : hasFindings ? p.yellow("!") : p.green("ok");
   const status = hasFindings ? summarizeCounts(counts) : p.green("clean");
   return `  ${icon} ${label} ${p.gray("-")} ${p.gray(caps)} ${p.gray("-")} ${status}`;
@@ -124,6 +137,60 @@ function renderFinding(p: Palette, finding: Finding): string[] {
   return lines;
 }
 
+const PIN_KINDS: CapabilityKind[] = ["tool", "prompt", "resource"];
+
+function kindDiffOf(diff: ServerDiff, kind: CapabilityKind): KindDiff {
+  if (kind === "tool") return diff.tool;
+  if (kind === "prompt") return diff.prompt;
+  return diff.resource;
+}
+
+/** Calm "here's what I just pinned" view of a server's accepted drift. Unlike a
+ * finding, it carries no severity — the user chose to trust this state. */
+function renderServerPin(p: Palette, result: ServerScanResult): string[] {
+  const { server, diff } = result;
+  const id = p.bold(result.target.id);
+  // A server that failed to connect was not pinned — say so, don't drop it
+  // silently from the section (the lockfile keeps its previous entry, if any).
+  if (!server || !diff) {
+    return [`  ${id} ${p.gray("·")} ${p.yellow("skipped")} ${p.gray("(could not connect)")}`];
+  }
+
+  // First-time pin: every capability is new, so a count beats a long list.
+  if (diff.isUnpinned) {
+    return [`  ${id} ${p.gray("·")} pinned ${p.gray(capabilitySummary(server))}`];
+  }
+
+  const lines: string[] = [];
+  for (const kind of PIN_KINDS) {
+    const kindDiff = kindDiffOf(diff, kind);
+    for (const change of kindDiff.changed) {
+      const what = change.descriptionChanged
+        ? "description updated"
+        : "definition updated (schema/metadata)";
+      lines.push(`  ${id} ${p.gray("·")} ${kind} "${change.name}" ${p.gray(what)}`);
+      if (change.descriptionChanged) {
+        lines.push(...renderDiff(p, change.before.description, change.after.description));
+      }
+    }
+    for (const removed of kindDiff.removed) {
+      lines.push(`  ${id} ${p.gray("·")} ${kind} "${removed.name}" ${p.gray("removed")}`);
+    }
+    if (kindDiff.added.length > 0) {
+      lines.push(
+        `  ${id} ${p.gray("·")} ${p.gray(`+${pluralize(kindDiff.added.length, `new ${kind}`)}`)}`,
+      );
+    }
+  }
+  return lines;
+}
+
+function renderPinned(p: Palette, results: ServerScanResult[]): string[] {
+  const body = results.flatMap((result) => renderServerPin(p, result));
+  if (body.length === 0) return [];
+  return [p.bold("Pinned:"), ...body, ""];
+}
+
 export function renderHuman(scan: ScanResult, options: HumanReportOptions): string {
   const p = palette(options.color);
   const lines: string[] = [];
@@ -137,9 +204,12 @@ export function renderHuman(scan: ScanResult, options: HumanReportOptions): stri
   );
   lines.push("");
 
-  for (const result of scan.results) lines.push(serverStatusLine(p, result));
+  for (const result of scan.results) {
+    lines.push(serverStatusLine(p, result, shownFindings(result.findings, options.updated)));
+  }
 
-  const sortedFindings = [...scan.findings].sort(
+  const displayed = shownFindings(scan.findings, options.updated);
+  const sortedFindings = [...displayed].sort(
     (a, b) => SEVERITY_ORDER[b.severity] - SEVERITY_ORDER[a.severity],
   );
   lines.push("");
@@ -148,7 +218,9 @@ export function renderHuman(scan: ScanResult, options: HumanReportOptions): stri
     lines.push("");
   }
 
-  const totals = countBySeverity(scan.findings);
+  if (options.updated) lines.push(...renderPinned(p, scan.results));
+
+  const totals = countBySeverity(displayed);
   const errorCount = scan.results.filter((r) => r.error).length;
   const errorNote =
     errorCount > 0 ? ` ${p.gray(`(${pluralize(errorCount, "connection error")})`)}` : "";
@@ -156,9 +228,13 @@ export function renderHuman(scan: ScanResult, options: HumanReportOptions): stri
     `${p.bold("Summary:")} ${summarizeCounts(totals)} across ${pluralize(scan.results.length, "server")}${errorNote}`,
   );
 
-  const lockDisplay = relative(process.cwd(), options.lockPath) || options.lockPath;
+  const lockDisplay = options.lockDisplay;
   if (options.updated) {
-    lines.push(p.gray(`Lockfile written: ${lockDisplay} (review the diff and commit it).`));
+    lines.push(
+      options.wrote
+        ? p.gray(`Pinned to ${lockDisplay} — review the diff and commit it.`)
+        : p.gray(`Already up to date: ${lockDisplay}.`),
+    );
   } else if (scan.results.some((r) => r.diff?.isUnpinned)) {
     lines.push(
       p.gray(
@@ -167,7 +243,7 @@ export function renderHuman(scan: ScanResult, options: HumanReportOptions): stri
     );
   }
 
-  if (scan.findings.length > 0) {
+  if (displayed.length > 0) {
     lines.push("");
     lines.push(p.gray(`Real issue or a false positive? Tell us: ${FEEDBACK_URL}`));
     lines.push(p.gray(`Want continuous monitoring across your repos? ${TEAMS_URL}`));

@@ -2,6 +2,10 @@ import type { KindDiff } from "../lockfile/diff.js";
 import type { CapabilityKind } from "../model.js";
 import type { Check, CheckInput, Finding } from "./types.js";
 
+/** checkId for every drift finding. Pin/update intentionally does not gate on
+ * these (re-pinning accepts the drift); other code filters by this id. */
+export const RUG_PULL_CHECK_ID = "rug-pull";
+
 function capitalize(kind: string): string {
   return kind.charAt(0).toUpperCase() + kind.slice(1);
 }
@@ -14,13 +18,13 @@ function capitalize(kind: string): string {
  * in {@link ../lockfile/diff}.
  */
 export const rugPullCheck: Check = {
-  id: "rug-pull",
+  id: RUG_PULL_CHECK_ID,
   run({ server, diff }: CheckInput): Finding[] {
     if (diff.isUnpinned) {
       const count = server.tools.length + server.prompts.length + server.resources.length;
       return [
         {
-          checkId: "rug-pull",
+          checkId: RUG_PULL_CHECK_ID,
           severity: "info",
           serverId: server.id,
           title: `Server "${server.id}" is not pinned`,
@@ -44,7 +48,7 @@ export const rugPullCheck: Check = {
       for (const change of kindDiff.changed) {
         if (change.descriptionChanged) {
           findings.push({
-            checkId: "rug-pull",
+            checkId: RUG_PULL_CHECK_ID,
             severity: "high",
             serverId: server.id,
             capability: { kind, name: change.name },
@@ -58,7 +62,7 @@ export const rugPullCheck: Check = {
           });
         } else {
           findings.push({
-            checkId: "rug-pull",
+            checkId: RUG_PULL_CHECK_ID,
             severity: "medium",
             serverId: server.id,
             capability: { kind, name: change.name },
@@ -74,7 +78,7 @@ export const rugPullCheck: Check = {
 
       for (const removed of kindDiff.removed) {
         findings.push({
-          checkId: "rug-pull",
+          checkId: RUG_PULL_CHECK_ID,
           severity: "medium",
           serverId: server.id,
           capability: { kind, name: removed.name },
@@ -87,7 +91,7 @@ export const rugPullCheck: Check = {
 
       for (const added of kindDiff.added) {
         findings.push({
-          checkId: "rug-pull",
+          checkId: RUG_PULL_CHECK_ID,
           severity: "low",
           serverId: server.id,
           capability: { kind, name: added.name },

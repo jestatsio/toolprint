@@ -119,11 +119,13 @@ toolprint pin  [target]      Pin current definitions (alias for scan --update)
 
 ### Exit codes (CI contract)
 
-| Code | Meaning                                                       |
-| ---- | ------------------------------------------------------------- |
-| `0`  | Clean — no findings at/above `--fail-on`, no drift            |
-| `1`  | Operational error — couldn't connect/parse a server           |
-| `2`  | Findings at/above `--fail-on`, and/or drift from the lockfile |
+| Code | Meaning                                                            |
+| ---- | ------------------------------------------------------------------ |
+| `0`  | Clean — nothing at/above `--fail-on` (and, for `scan`, no drift)   |
+| `1`  | Operational error — couldn't connect/parse a server                |
+| `2`  | Findings at/above `--fail-on` (on `scan`, drift from the lock too) |
+
+`pin` / `scan --update` **accept drift**: a rug-pull diff you're explicitly re-pinning never fails the run. Tool-poisoning and leaked-secret findings still gate, though — the lockfile is written, but the command exits `2` so you can't silently pin dangerous state.
 
 ## What toolprint does _not_ do
 

@@ -1,7 +1,10 @@
 // A tiny stdio MCP server used only for local verification of toolprint.
-// Env toggles simulate attacks:
-//   TOOLPRINT_TEST_RUGPULL=1  -> read_file's description silently changes
+// Env toggles simulate attacks (and one benign change):
+//   TOOLPRINT_TEST_RUGPULL=1  -> read_file's description silently changes to a
+//                                malicious exfiltration payload (drift AND poison)
 //   TOOLPRINT_TEST_POISON=1   -> adds a tool with an instruction-override payload
+//   TOOLPRINT_TEST_BENIGN=1   -> list_dir's description changes innocuously
+//                                (drift only, trips no security check)
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -12,6 +15,7 @@ import {
 
 const rugpull = process.env.TOOLPRINT_TEST_RUGPULL === "1";
 const poison = process.env.TOOLPRINT_TEST_POISON === "1";
+const benign = process.env.TOOLPRINT_TEST_BENIGN === "1";
 
 const tools = [
   {
@@ -23,7 +27,9 @@ const tools = [
   },
   {
     name: "list_dir",
-    description: "List the entries in a directory.",
+    description: benign
+      ? "List the entries in a directory, including hidden dotfiles."
+      : "List the entries in a directory.",
     inputSchema: { type: "object", properties: { path: { type: "string" } } },
   },
 ];

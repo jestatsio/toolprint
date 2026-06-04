@@ -6,6 +6,17 @@ import { TOOLPRINT_VERSION } from "../version.js";
  * Stable machine-readable report. This schema is a contract: CI configs and any
  * future API depend on it, so add fields rather than renaming/removing them.
  */
+export interface UpdateSummary {
+  /** Lockfile path, relative to cwd when possible. */
+  lockfile: string;
+  /** False on a no-op re-pin (content already matched). */
+  wrote: boolean;
+  /** True when the pin still exits non-zero — a tool-poisoning or secret-leak
+   * finding gated it. Accepted drift (rug-pull) never sets this, so consumers
+   * get the same pass/fail decision the CLI makes without filtering findings. */
+  failed: boolean;
+}
+
 export interface JsonReport {
   toolprintVersion: string;
   schemaVersion: 1;
@@ -23,6 +34,8 @@ export interface JsonReport {
     capabilities?: { tools: number; prompts: number; resources: number };
     findings: Finding[];
   }>;
+  /** Present only on `pin` / `scan --update`. */
+  update?: UpdateSummary;
 }
 
 function countBySeverity(findings: Finding[]): Record<Severity, number> {
@@ -31,7 +44,7 @@ function countBySeverity(findings: Finding[]): Record<Severity, number> {
   return counts;
 }
 
-export function buildJsonReport(scan: ScanResult): JsonReport {
+export function buildJsonReport(scan: ScanResult, update?: UpdateSummary): JsonReport {
   return {
     toolprintVersion: TOOLPRINT_VERSION,
     schemaVersion: 1,
@@ -57,6 +70,7 @@ export function buildJsonReport(scan: ScanResult): JsonReport {
         : {}),
       findings: result.findings,
     })),
+    ...(update ? { update } : {}),
   };
 }
 
