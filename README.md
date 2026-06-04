@@ -122,7 +122,7 @@ permissions:
   security-events: write # required to upload SARIF
 
 steps:
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@v6
   - uses: jestatsio/toolprint@v1
     with:
       config: ./.vscode/mcp.json
