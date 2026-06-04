@@ -10,6 +10,7 @@ import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { getErrorMessage, OperationalError } from "../errors.js";
 import type { Capability, ServerCapabilities, ServerTarget } from "../model.js";
 import { TOOLPRINT_VERSION } from "../version.js";
+import { mergeHeaders } from "./auth.js";
 
 const CLIENT_INFO = { name: "toolprint", version: TOOLPRINT_VERSION };
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -71,7 +72,9 @@ async function connectClient(target: ServerTarget, timeoutMs: number): Promise<C
     throw new OperationalError(`${target.transport} server "${target.id}" has no url`);
   }
   const url = new URL(target.url);
-  const requestInit = target.headers ? { headers: target.headers } : undefined;
+  // Config-declared headers, with runtime auth (CLI/env) layered on top.
+  const headers = mergeHeaders(target.headers, target.authHeaders);
+  const requestInit = headers ? { headers } : undefined;
 
   if (target.transport === "sse") {
     return connectWith(

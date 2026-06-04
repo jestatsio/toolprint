@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { SEVERITIES, type Severity } from "./checks/types.js";
+import { applyAuthHeaders, collectAuthHeaders } from "./connect/auth.js";
 import { resolveTargets } from "./connect/target.js";
 import { getErrorMessage, OperationalError } from "./errors.js";
 import {
@@ -27,8 +28,15 @@ interface ScanCliOptions {
   probe?: boolean;
   lockfile?: string;
   timeout: string;
+  header: string[]; // repeated --header; defaults to []
+  bearer?: string;
   telemetry: boolean; // commander maps --no-telemetry to telemetry:false
   color: boolean; // commander maps --no-color to color:false
+}
+
+/** Commander collector for a repeatable string option. */
+function collect(value: string, previous: string[]): string[] {
+  return [...previous, value];
 }
 
 function parseSeverity(value: string): Severity {
@@ -50,7 +58,11 @@ async function runScan(target: string | undefined, options: ScanCliOptions): Pro
 
   const lockPath = resolveLockfilePath(cwd, options.lockfile);
   const lockfile = readLockfile(lockPath);
-  const targets = resolveTargets(target, { config: options.config }, cwd);
+  const authHeaders = collectAuthHeaders({ header: options.header, bearer: options.bearer });
+  const targets = applyAuthHeaders(
+    resolveTargets(target, { config: options.config }, cwd),
+    authHeaders,
+  );
 
   const scan = await scanTargets(targets, lockfile, {
     timeoutMs,
@@ -104,6 +116,13 @@ function withScanOptions(command: Command): Command {
     .option("--probe", "reserved: inspect tool outputs (toolprint never executes tools by default)")
     .option("--lockfile <path>", "path to the lockfile (default: nearest toolprint.lock)")
     .option("--timeout <ms>", "per-server timeout in milliseconds", "30000")
+    .option(
+      "--header <header>",
+      'add an HTTP header to http(s)/sse targets, e.g. --header "Authorization: Bearer $TOKEN" (repeatable)',
+      collect,
+      [],
+    )
+    .option("--bearer <token>", 'shorthand for --header "Authorization: Bearer <token>"')
     .option("--no-telemetry", "disable anonymous usage telemetry")
     .option("--no-color", "disable colored output");
 }

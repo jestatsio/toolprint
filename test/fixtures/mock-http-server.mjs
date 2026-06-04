@@ -63,13 +63,23 @@ function readJsonBody(req) {
   });
 }
 
-/** Start the fixture on an ephemeral port. Returns { url, close }. */
-export async function startHttpMockServer({ poison = false } = {}) {
-  const mcp = buildMcpServer({ poison });
+/**
+ * Start the fixture on an ephemeral port. Returns { url, close }.
+ *
+ * Pass `auth: "<token>"` to require `Authorization: Bearer <token>` on every
+ * request; anything else gets a 401. This exercises toolprint's header injection
+ * over the real wire (not just the POSTs — the StreamableHTTP client also issues
+ * GET/DELETE, all of which must carry the header).
+ */
+export async function startHttpMockServer({ poison = false, auth = undefined } = {}) {
   const transports = new Map();
 
   const httpServer = createServer(async (req, res) => {
     try {
+      if (auth !== undefined && req.headers["authorization"] !== `Bearer ${auth}`) {
+        res.writeHead(401).end();
+        return;
+      }
       const sessionId = req.headers["mcp-session-id"];
       if (req.method === "POST") {
         const body = await readJsonBody(req);
@@ -82,7 +92,9 @@ export async function startHttpMockServer({ poison = false } = {}) {
           transport.onclose = () => {
             if (transport.sessionId) transports.delete(transport.sessionId);
           };
-          await mcp.connect(transport);
+          // One MCP Server per session — a Server backs a single connection, and
+          // the fixture may serve several sequential clients.
+          await buildMcpServer({ poison }).connect(transport);
         }
         await transport.handleRequest(req, res, body);
         return;
