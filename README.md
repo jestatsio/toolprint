@@ -83,9 +83,12 @@ toolprint v0.1.0 - 1 server
       -> If the change is legitimate, re-pin with `toolprint scan --update`; otherwise stop using this server.
 
 Summary: 1 high across 1 server
+Failed: 1 finding at or above high (exit 2).
 ```
 
 In CI, that's a failed check. In a PR, re-pinning produces a `toolprint.lock` diff your teammate reviews before it merges.
+
+**Any drift to a capability you pinned is `high` and fails the default `--fail-on high`** — not just a changed description, but a changed input/output schema or metadata (new parameters can widen what a tool receives without touching its description) and a pinned capability that disappears. Drift is a deterministic hash comparison, so gating it never costs you a false positive. A genuinely _new_, never-pinned capability is `low` (review it, then pin) and a brand-new server is `info` (nothing to compare yet).
 
 ## In CI (GitHub Action)
 

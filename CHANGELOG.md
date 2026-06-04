@@ -23,6 +23,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     to the lockfile** and **never flagged by the secret-leak check** (a secret
     hard-coded into a committed config's `headers` still is). The lockfile pins
     tool definitions only.
+- **Explicit pass/fail outcome line** in human output — e.g.
+  `Failed: 1 finding at or above high (exit 2).` or
+  `Passed --fail-on high: 2 findings below the gate, not enforced (exit 0).` — so
+  a finding below the gate is never misread as a clean run.
+
+### Changed
+
+- **Rug-pull drift now fails the default `--fail-on high`.** A schema/metadata
+  change to a pinned capability (or a pinned capability being removed) was
+  `medium`, so the documented default `toolprint scan <target>` exited `0` on it
+  — CI went green on the exact thing toolprint exists to catch (#13). Any drift
+  to a capability you pinned is now `high`: a changed description (as before), a
+  changed input/output schema or metadata, or a removal. Drift is a
+  deterministic hash comparison, so this adds no false positives. A genuinely
+  new, never-pinned capability stays `low`; a brand-new server stays `info`.
+  `pin` / `scan --update` still accept drift (a re-pin never fails on it).
 
 ## [0.1.0] - 2026-06-04
 

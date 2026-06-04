@@ -1,6 +1,6 @@
 import { RUG_PULL_CHECK_ID } from "../checks/rugpull.js";
 import type { Finding, Severity } from "../checks/types.js";
-import { SEVERITY_ORDER } from "../checks/types.js";
+import { meetsThreshold, SEVERITY_ORDER } from "../checks/types.js";
 import type { KindDiff, ServerDiff } from "../lockfile/diff.js";
 import { type CapabilityKind, kindLabel, type ServerCapabilities } from "../model.js";
 import type { ScanResult, ServerScanResult } from "../scan.js";
@@ -16,6 +16,12 @@ export interface HumanReportOptions {
   updated: boolean;
   /** Whether the lockfile was actually written (false on a no-op re-pin). */
   wrote: boolean;
+  /** The active `--fail-on` threshold. When set (with {@link failing}), an
+   * explicit pass/fail outcome line is rendered so a sub-gate finding is never
+   * mistaken for a clean run. */
+  failOn?: Severity;
+  /** The authoritative gate decision from the caller (drives exit code 2). */
+  failing?: boolean;
 }
 
 /** Findings to display for a result. On a pin, drift is shown as the "Pinned"
@@ -104,6 +110,25 @@ function countBySeverity(findings: Finding[]): Record<Severity, number> {
 function summarizeCounts(counts: Record<Severity, number>): string {
   const parts = SEVERITY_ORDER_DESC.filter((s) => counts[s] > 0).map((s) => `${counts[s]} ${s}`);
   return parts.length ? parts.join(", ") : "clean";
+}
+
+/**
+ * An explicit pass/fail line, so a finding below `--fail-on` is never misread as
+ * a clean run (the exit code was the only signal before). `displayed` is already
+ * mode-aware — on a pin, accepted drift is excluded.
+ */
+function outcomeLine(p: Palette, displayed: Finding[], failOn: Severity, failing: boolean): string {
+  if (failing) {
+    const gating = displayed.filter((f) => meetsThreshold(f.severity, failOn)).length;
+    return p.red(p.bold(`Failed: ${pluralize(gating, "finding")} at or above ${failOn} (exit 2).`));
+  }
+  if (displayed.length > 0) {
+    // Not failing, so every shown finding sits below the gate.
+    return p.yellow(
+      `Passed --fail-on ${failOn}: ${pluralize(displayed.length, "finding")} below the gate, not enforced (exit 0). Lower --fail-on to gate them.`,
+    );
+  }
+  return p.green(`Passed: nothing at or above ${failOn} (exit 0).`);
 }
 
 function serverStatusLine(p: Palette, result: ServerScanResult, findings: Finding[]): string {
@@ -232,6 +257,9 @@ export function renderHuman(scan: ScanResult, options: HumanReportOptions): stri
   lines.push(
     `${p.bold("Summary:")} ${summarizeCounts(totals)} across ${pluralize(scan.results.length, "server")}${errorNote}`,
   );
+  if (options.failOn !== undefined && options.failing !== undefined) {
+    lines.push(outcomeLine(p, displayed, options.failOn, options.failing));
+  }
 
   const lockDisplay = options.lockDisplay;
   if (options.updated) {
