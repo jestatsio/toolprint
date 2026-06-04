@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-04
+
 ### Added
 
 - **Authentication for remote targets.** `scan`/`pin` can now reach
@@ -76,5 +78,6 @@ rug-pulls, and pins what you trust into a committed, reviewable `toolprint.lock`
 - **Hardening.** Recursive walkers over untrusted server JSON are depth-bounded,
   so a hostile server cannot crash a scan with a pathologically nested response.
 
-[Unreleased]: https://github.com/jestatsio/toolprint/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/jestatsio/toolprint/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/jestatsio/toolprint/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/jestatsio/toolprint/releases/tag/v0.1.0
