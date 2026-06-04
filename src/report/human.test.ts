@@ -98,6 +98,67 @@ describe("renderHuman — pin/update", () => {
     expect(out).toContain("Instruction-override phrase");
   });
 
+  it("renders an explicit Failed outcome line when the run gates", () => {
+    const out = renderHuman(rugPullScan(), {
+      color: false,
+      lockDisplay: LOCK,
+      updated: false,
+      wrote: false,
+      failOn: "high",
+      failing: true,
+    });
+    expect(out).toContain("Failed:");
+    expect(out).toContain("at or above high");
+    expect(out).toContain("exit 2");
+  });
+
+  it("makes a sub-gate finding unmistakable instead of reading as clean", () => {
+    const lowFinding: Finding = {
+      checkId: "rug-pull",
+      severity: "low",
+      serverId: "github",
+      capability: { kind: "tool", name: "new_tool" },
+      title: 'New unpinned tool "new_tool"',
+      detail: "new",
+    };
+    const scan: ScanResult = {
+      results: [
+        {
+          target: { id: "github", transport: "stdio", source: "cmd" },
+          server: caps([tool("read_file", "Read a file.")]),
+          diff: undefined,
+          findings: [lowFinding],
+        },
+      ],
+      findings: [lowFinding],
+      hadOperationalError: false,
+    };
+    const out = renderHuman(scan, {
+      color: false,
+      lockDisplay: LOCK,
+      updated: false,
+      wrote: false,
+      failOn: "high",
+      failing: false,
+    });
+    // The exit code was the only signal before; now the summary says it plainly.
+    expect(out).toContain("Passed --fail-on high");
+    expect(out).toContain("below the gate");
+  });
+
+  it("reports a fully clean run as passed", () => {
+    const scan: ScanResult = { results: [], findings: [], hadOperationalError: false };
+    const out = renderHuman(scan, {
+      color: false,
+      lockDisplay: LOCK,
+      updated: false,
+      wrote: false,
+      failOn: "high",
+      failing: false,
+    });
+    expect(out).toContain("Passed: nothing at or above high");
+  });
+
   it("reports an idempotent re-pin (nothing written) as already up to date", () => {
     const same = caps([tool("create_issue", "Create an issue.")]);
     const diff = diffServer(same, toLockedServer(same));
@@ -108,8 +169,31 @@ describe("renderHuman — pin/update", () => {
       findings: [],
     };
     const scan: ScanResult = { results: [result], findings: [], hadOperationalError: false };
-    const out = renderHuman(scan, { color: false, lockPath: LOCK, updated: true, wrote: false });
+    const out = renderHuman(scan, { color: false, lockDisplay: LOCK, updated: true, wrote: false });
     expect(out).toContain("up to date");
     expect(out).not.toContain("Pinned to");
+  });
+
+  it("on a pin, the outcome line counts only gating findings, not accepted drift", () => {
+    const poison: Finding = {
+      checkId: "tool-poisoning",
+      severity: "high",
+      serverId: "github",
+      capability: { kind: "tool", name: "create_issue" },
+      title: "Instruction-override phrase",
+      detail: "poison",
+    };
+    // The scan carries an accepted rug-pull (drift) AND a gating poison finding.
+    const out = renderHuman(rugPullScan([poison]), {
+      color: false,
+      lockDisplay: LOCK,
+      updated: true,
+      wrote: true,
+      failOn: "high",
+      failing: true,
+    });
+    // Only the poison gates — the accepted drift is excluded, not counted as 2.
+    expect(out).toContain("Failed: 1 finding at or above high");
+    expect(out).toContain("Pinned to");
   });
 });

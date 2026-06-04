@@ -68,7 +68,11 @@ export const rugPullCheck: Check = {
         } else {
           findings.push({
             checkId: RUG_PULL_CHECK_ID,
-            severity: "medium",
+            // High, like a description change: a silent change to a definition you
+            // pinned is the rug-pull threat regardless of which field moved, and
+            // it's deterministic (a hash compare), so gating it adds no false
+            // positives. This is what makes the default `--fail-on high` catch it.
+            severity: "high",
             serverId: server.id,
             capability: { kind, name: change.name },
             title: `${capitalize(kindLabel(kind))} "${change.name}" definition changed (schema/metadata) since it was pinned`,
@@ -84,7 +88,10 @@ export const rugPullCheck: Check = {
       for (const removed of kindDiff.removed) {
         findings.push({
           checkId: RUG_PULL_CHECK_ID,
-          severity: "medium",
+          // A pinned capability vanishing is drift from trusted state too: it can
+          // quietly break workflows or mask a swapped server, so it gates by
+          // default alongside changed definitions.
+          severity: "high",
           serverId: server.id,
           capability: { kind, name: removed.name },
           title: `${capitalize(kindLabel(kind))} "${removed.name}" was pinned but is no longer offered`,

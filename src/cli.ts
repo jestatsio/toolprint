@@ -97,7 +97,9 @@ async function runScan(target: string | undefined, options: ScanCliOptions): Pro
       options.color !== false &&
       process.stdout.isTTY === true &&
       process.env.NO_COLOR === undefined;
-    process.stdout.write(renderHuman(scan, { color, lockDisplay, updated: update, wrote }));
+    process.stdout.write(
+      renderHuman(scan, { color, lockDisplay, updated: update, wrote, failOn, failing }),
+    );
   }
 
   process.exitCode = exitCodeFor(failing, scan.hadOperationalError);
