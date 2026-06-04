@@ -1,3 +1,4 @@
+import { MAX_JSON_DEPTH } from "../limits.js";
 import type { Capability, CapabilityKind } from "../model.js";
 import type { Check, CheckInput, Finding, Severity } from "./types.js";
 
@@ -104,12 +105,9 @@ function textSources(capability: Capability): TextSource[] {
   return sources;
 }
 
-/** A real tool/prompt/resource definition is never deeply nested; this bounds
- * the walk so a hostile server can't blow the stack with pathological JSON. */
-const MAX_DEPTH = 100;
-
 function collectText(value: unknown, path: string, acc: TextSource[], depth = 0): void {
-  if (depth > MAX_DEPTH || !value || typeof value !== "object") return;
+  // Bounded so a hostile server can't blow the stack with pathological JSON.
+  if (depth > MAX_JSON_DEPTH || !value || typeof value !== "object") return;
   if (Array.isArray(value)) {
     value.forEach((item, index) => collectText(item, `${path}[${index}]`, acc, depth + 1));
     return;

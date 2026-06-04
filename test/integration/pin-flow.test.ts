@@ -189,4 +189,14 @@ describe("pin/update flow (live stdio MCP server)", () => {
     expect(poison?.severity).toBe("high");
     expect(poison?.capability?.name).toBe("file:///notes");
   });
+
+  it("degrades to an operational error on a pathologically deep response (no crash)", async () => {
+    const scan = await scanTargets([target({ TOOLPRINT_TEST_DEEP: "1" })], null, {
+      timeoutMs: TIMEOUT,
+    });
+    // The deep schema is refused while hashing and surfaces as an operational
+    // error for that server — the process must not stack-overflow.
+    expect(scan.hadOperationalError).toBe(true);
+    expect(scan.results[0]?.error).toMatch(/nested deeper/);
+  });
 });

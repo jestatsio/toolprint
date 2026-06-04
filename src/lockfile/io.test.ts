@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Capability, ServerCapabilities } from "../model.js";
 import { lockedContentEquals, mergeLockfile, serializeLockfile } from "./io.js";
+import type { Lockfile } from "./schema.js";
 
 function tool(name: string, description: string): Capability {
   return {
@@ -57,6 +58,18 @@ describe("lockedContentEquals", () => {
       "t1",
     );
     expect(lockedContentEquals(a, b)).toBe(false);
+  });
+
+  it("rejects a pathologically deep structure instead of overflowing the stack", () => {
+    let deep: Record<string, unknown> = { hash: "x" };
+    for (let i = 0; i < 5000; i++) deep = { nested: deep };
+    const lock = {
+      lockfileVersion: 1,
+      toolprintVersion: "0.0.0",
+      generatedAt: "t",
+      servers: { s: { transport: "stdio", tools: { t: deep }, prompts: {}, resources: {} } },
+    } as unknown as Lockfile;
+    expect(() => lockedContentEquals(lock, lock)).toThrow(/nested deeper/);
   });
 });
 

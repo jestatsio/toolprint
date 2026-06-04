@@ -73,4 +73,11 @@ describe("hashCapability", () => {
     const withMeta = { ...tool, _meta: { requestId: "abc-123", timestamp: 42 } };
     expect(hashCapability(withMeta)).toBe(hashCapability(tool));
   });
+
+  it("rejects a pathologically deep definition instead of overflowing the stack", () => {
+    let deep: Record<string, unknown> = { description: "ok" };
+    for (let i = 0; i < 5000; i++) deep = { nested: deep };
+    expect(() => canonicalize(deep)).toThrow(/nested deeper/);
+    expect(() => hashCapability(deep)).toThrow(/nested deeper/);
+  });
 });
