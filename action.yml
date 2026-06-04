@@ -21,6 +21,10 @@ inputs:
     description: "Path to the toolprint.lock to enforce."
     required: false
     default: ""
+  sarif-file:
+    description: "If set, write SARIF 2.1.0 results to this path for github/codeql-action/upload-sarif. In SARIF mode findings do not fail the job (they become code-scanning alerts); operational errors still do. Upload with `if: always()`."
+    required: false
+    default: ""
   version:
     description: "toolprint version to run (npm dist-tag or exact version)."
     required: false
@@ -41,6 +45,18 @@ runs:
         if [ -n "${{ inputs.target }}" ]; then CMD+=("${{ inputs.target }}"); fi
         if [ -n "${{ inputs.config }}" ]; then CMD+=(--config "${{ inputs.config }}"); fi
         if [ -n "${{ inputs.lockfile }}" ]; then CMD+=(--lockfile "${{ inputs.lockfile }}"); fi
-        CMD+=(--fail-on "${{ inputs.fail-on }}" --no-color --no-telemetry)
-        echo "+ ${CMD[*]}"
-        "${CMD[@]}"
+        CMD+=(--fail-on "${{ inputs.fail-on }}" --no-telemetry)
+        SARIF="${{ inputs.sarif-file }}"
+        if [ -n "$SARIF" ]; then
+          CMD+=(--sarif)
+          echo "+ ${CMD[*]} > $SARIF"
+          set +e; "${CMD[@]}" > "$SARIF"; code=$?; set -e
+          echo "toolprint exit: $code (SARIF written to $SARIF)"
+          # Surface findings as code-scanning alerts rather than failing here;
+          # still fail on an operational error (couldn't connect/parse).
+          if [ "$code" -eq 1 ]; then exit 1; fi
+        else
+          CMD+=(--no-color)
+          echo "+ ${CMD[*]}"
+          "${CMD[@]}"
+        fi
