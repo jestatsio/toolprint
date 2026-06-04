@@ -77,6 +77,29 @@ In CI, that's a failed check. In a PR, re-pinning produces a `toolprint.lock` di
 
 The build fails if a scan finds anything at or above `fail-on`, including drift from your committed `toolprint.lock`.
 
+### GitHub code scanning (SARIF)
+
+Surface findings as code-scanning alerts in the **Security** tab and inline on pull requests. `toolprint scan --sarif` emits SARIF 2.1.0; the Action writes it to a file for `upload-sarif`:
+
+```yaml
+permissions:
+  contents: read
+  security-events: write # required to upload SARIF
+
+steps:
+  - uses: actions/checkout@v4
+  - uses: jestatsio/toolprint@v1
+    with:
+      config: ./.vscode/mcp.json
+      sarif-file: toolprint.sarif
+  - uses: github/codeql-action/upload-sarif@v3
+    if: always() # upload even when findings are present
+    with:
+      sarif_file: toolprint.sarif
+```
+
+Each check (`rug-pull`, `tool-poisoning`, `secret-leak`) is a rule with a `security-severity`; each finding is a result, anchored to your config (or `toolprint.lock`) with a stable fingerprint so an alert tracks across runs. In SARIF mode findings become alerts rather than failing the job — gate via branch protection or keep a second plain `scan` step.
+
 ## The lockfile
 
 `toolprint.lock` is JSON, committed at your project root. Each capability is pinned by a stable SHA-256 of its full definition, with the raw description stored so drift renders as a readable diff:
@@ -111,6 +134,7 @@ toolprint pin  [target]      Pin current definitions (alias for scan --update)
   --update            Pin current definitions into the lockfile
   --fail-on <sev>     Min severity that fails: info|low|medium|high|critical (default: high)
   --json              Machine-readable output (stable schema for CI)
+  --sarif             SARIF 2.1.0 output for GitHub code scanning
   --lockfile <path>   Lockfile location (default: nearest toolprint.lock)
   --timeout <ms>      Per-server timeout (default: 30000)
   --no-telemetry      Disable anonymous usage telemetry

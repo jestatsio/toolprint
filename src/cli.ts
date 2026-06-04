@@ -14,6 +14,7 @@ import {
 import { exitCodeFor, isFailing } from "./outcome.js";
 import { renderHuman } from "./report/human.js";
 import { buildJsonReport, renderJson } from "./report/json.js";
+import { buildSarifReport, renderSarif, toArtifactUri } from "./report/sarif.js";
 import { scanTargets } from "./scan.js";
 import { TOOLPRINT_VERSION } from "./version.js";
 
@@ -22,6 +23,7 @@ interface ScanCliOptions {
   update?: boolean;
   failOn: string;
   json?: boolean;
+  sarif?: boolean;
   probe?: boolean;
   lockfile?: string;
   timeout: string;
@@ -70,7 +72,12 @@ async function runScan(target: string | undefined, options: ScanCliOptions): Pro
   const failing = isFailing(scan.findings, { failOn, update });
   const lockDisplay = displayLockPath(cwd, lockPath);
 
-  if (options.json) {
+  if (options.sarif) {
+    // Findings have no source line; anchor them to the scanned config (or the
+    // lockfile) so GitHub code scanning can display them.
+    const anchorUri = toArtifactUri(cwd, options.config ?? lockPath);
+    process.stdout.write(renderSarif(buildSarifReport(scan, { anchorUri })));
+  } else if (options.json) {
     const updateSummary = update ? { lockfile: lockDisplay, wrote, failed: failing } : undefined;
     process.stdout.write(renderJson(buildJsonReport(scan, updateSummary)));
   } else {
@@ -93,6 +100,7 @@ function withScanOptions(command: Command): Command {
       "high",
     )
     .option("--json", "output machine-readable JSON")
+    .option("--sarif", "output SARIF 2.1.0 for GitHub code scanning")
     .option("--probe", "reserved: inspect tool outputs (toolprint never executes tools by default)")
     .option("--lockfile <path>", "path to the lockfile (default: nearest toolprint.lock)")
     .option("--timeout <ms>", "per-server timeout in milliseconds", "30000")
