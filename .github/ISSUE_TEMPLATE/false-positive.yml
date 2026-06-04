@@ -1,0 +1,36 @@
+name: False positive or missed detection
+description: A finding you think is wrong, or an attack toolprint should have caught but didn't.
+title: "[feedback] "
+labels: ["feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Precision is the whole game — false-positive and missed-detection reports are the most valuable feedback we get. Thank you for taking the time.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of feedback is this?
+      options:
+        - False positive (flagged something benign)
+        - Missed detection (didn't flag something malicious)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: finding
+    attributes:
+      label: The finding (or the thing that should have been flagged)
+      description: Paste the relevant `toolprint` output, or describe the tool/prompt/resource and its description.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: server
+    attributes:
+      label: Which MCP server?
+      description: npm package, URL, or just "private".
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead, and why?

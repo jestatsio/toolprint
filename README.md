@@ -159,11 +159,11 @@ toolprint pin  [target]      Pin current definitions (alias for scan --update)
 
 ## Continuous monitoring
 
-Want this watching your whole fleet — continuous re-scans, drift alerts when a server changes in production, and a team dashboard instead of one-off CLI runs? That's what we're building next. **[Tell us about your use case →](https://github.com/jestatsio/toolprint/issues/new?labels=teams)**
+Want this watching your whole fleet — continuous re-scans, drift alerts when a server changes in production, and a team dashboard instead of one-off CLI runs? That's what we're building next. **[Tell us about your use case →](https://github.com/jestatsio/toolprint/issues/new?template=continuous-monitoring.yml)**
 
 ## Status
 
-Early and moving fast. The CLI works end-to-end; the schema and exit codes are a stable contract. Found a real issue or a false positive? **[Open an issue](https://github.com/jestatsio/toolprint/issues/new?labels=feedback)** — precision is the whole game, so false-positive reports are especially valuable.
+Early and moving fast. The CLI works end-to-end; the schema and exit codes are a stable contract. Found a real issue or a false positive? **[Open an issue](https://github.com/jestatsio/toolprint/issues/new?template=false-positive.yml)** — precision is the whole game, so false-positive reports are especially valuable.
 
 ## License
 
