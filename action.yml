@@ -29,6 +29,14 @@ inputs:
     description: "toolprint version to run (npm dist-tag or exact version)."
     required: false
     default: "latest"
+  comment-on-pr:
+    description: "On a pull_request event (non-SARIF mode), upsert a sticky comment summarizing the scan. Requires `pull-requests: write` permission. Has no effect when sarif-file is set."
+    required: false
+    default: "false"
+  github-token:
+    description: "Token used to post the PR comment. Defaults to the workflow token."
+    required: false
+    default: ${{ github.token }}
 
 runs:
   using: "composite"
@@ -39,22 +47,41 @@ runs:
         node-version: "20"
     - name: Run toolprint scan
       shell: bash
+      # Inputs are passed via env (never spliced into the script body) so a value
+      # containing shell metacharacters can't break out of the command.
+      env:
+        INPUT_TARGET: ${{ inputs.target }}
+        INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_LOCKFILE: ${{ inputs.lockfile }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_SARIF_FILE: ${{ inputs.sarif-file }}
+        INPUT_COMMENT_ON_PR: ${{ inputs.comment-on-pr }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         set -euo pipefail
-        CMD=(npx --yes "toolprint@${{ inputs.version }}" scan)
-        if [ -n "${{ inputs.target }}" ]; then CMD+=("${{ inputs.target }}"); fi
-        if [ -n "${{ inputs.config }}" ]; then CMD+=(--config "${{ inputs.config }}"); fi
-        if [ -n "${{ inputs.lockfile }}" ]; then CMD+=(--lockfile "${{ inputs.lockfile }}"); fi
-        CMD+=(--fail-on "${{ inputs.fail-on }}" --no-telemetry)
-        SARIF="${{ inputs.sarif-file }}"
-        if [ -n "$SARIF" ]; then
+        CMD=(npx --yes "toolprint@${INPUT_VERSION}" scan)
+        if [ -n "$INPUT_TARGET" ]; then CMD+=("$INPUT_TARGET"); fi
+        if [ -n "$INPUT_CONFIG" ]; then CMD+=(--config "$INPUT_CONFIG"); fi
+        if [ -n "$INPUT_LOCKFILE" ]; then CMD+=(--lockfile "$INPUT_LOCKFILE"); fi
+        CMD+=(--fail-on "$INPUT_FAIL_ON" --no-telemetry)
+        if [ -n "$INPUT_SARIF_FILE" ]; then
           CMD+=(--sarif)
-          echo "+ ${CMD[*]} > $SARIF"
-          set +e; "${CMD[@]}" > "$SARIF"; code=$?; set -e
-          echo "toolprint exit: $code (SARIF written to $SARIF)"
+          echo "+ ${CMD[*]} > $INPUT_SARIF_FILE"
+          set +e; "${CMD[@]}" > "$INPUT_SARIF_FILE"; code=$?; set -e
+          echo "toolprint exit: $code (SARIF written to $INPUT_SARIF_FILE)"
           # Surface findings as code-scanning alerts rather than failing here;
           # still fail on an operational error (couldn't connect/parse).
           if [ "$code" -eq 1 ]; then exit 1; fi
+        elif [ "$INPUT_COMMENT_ON_PR" = "true" ]; then
+          # Run once in JSON mode: the report drives the sticky PR comment and is
+          # echoed to the log. The scan's exit code still gates the job.
+          REPORT="$(mktemp)"
+          echo "+ ${CMD[*]} --json > \$REPORT"
+          set +e; "${CMD[@]}" --json > "$REPORT"; code=$?; set -e
+          cat "$REPORT"
+          node "$GITHUB_ACTION_PATH/action/pr-comment.mjs" "$REPORT" || true
+          exit "$code"
         else
           CMD+=(--no-color)
           echo "+ ${CMD[*]}"

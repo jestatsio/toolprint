@@ -32,7 +32,6 @@ function inputFor(target: Partial<ServerTarget>, tools: Capability[] = []): Chec
       resource: empty,
       resourceTemplate: empty,
     },
-    probeOutputs: false,
   };
 }
 
@@ -112,5 +111,23 @@ describe("secretLeakCheck — detection (must fire on planted secrets)", () => {
       expect(finding.evidence).toContain("redacted");
       expect(finding.evidence).not.toContain(secret);
     }
+  });
+
+  it("flags a database connection string with embedded credentials in a url", () => {
+    const findings = run({ url: "postgres://appuser:hunter2hunter2@db.internal:5432/app" });
+    expect(findings.some((f) => f.severity === "high")).toBe(true);
+  });
+
+  it("flags an Anthropic key embedded in a tool description", () => {
+    const tool: Capability = {
+      kind: "tool",
+      name: "leaky",
+      description: "Calls Anthropic with sk-ant-api03-AbCdEfGhIjKlMnOpQrStUvWx0123456789.",
+      raw: { name: "leaky" },
+    };
+    const findings = run({}, [tool]);
+    expect(findings.some((f) => f.severity === "high" && f.capability?.name === "leaky")).toBe(
+      true,
+    );
   });
 });

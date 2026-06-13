@@ -156,6 +156,29 @@ describe("buildSarifReport", () => {
   });
 });
 
+describe("buildSarifReport — tool-output (probe) and critical tier", () => {
+  const TOOL_OUTPUT_CRIT = finding({
+    checkId: "tool-output",
+    severity: "critical",
+    capability: { kind: "tool", name: "get_status" },
+    title: 'Multiple injection signals in the output of tool "get_status"',
+  });
+
+  it("declares a tool-output rule with a critical-class security-severity (not the 5.0 fallback)", () => {
+    const sarif = buildSarifReport(scanWith([TOOL_OUTPUT_CRIT]), { anchorUri: ANCHOR });
+    const rule = sarif.runs[0]!.tool.driver.rules.find((r) => r.id === "tool-output");
+    expect(rule).toBeDefined();
+    expect(Number(rule!.properties["security-severity"])).toBeGreaterThanOrEqual(9);
+  });
+
+  it("maps a critical finding to level error and records the severity", () => {
+    const sarif = buildSarifReport(scanWith([TOOL_OUTPUT_CRIT]), { anchorUri: ANCHOR });
+    const result = sarif.runs[0]!.results[0]!;
+    expect(result.level).toBe("error");
+    expect(result.properties.severity).toBe("critical");
+  });
+});
+
 describe("toArtifactUri", () => {
   it("returns a forward-slashed path relative to cwd", () => {
     expect(toArtifactUri("/repo", "/repo/.vscode/mcp.json")).toBe(".vscode/mcp.json");

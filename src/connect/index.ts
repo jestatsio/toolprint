@@ -11,12 +11,78 @@ import { getErrorMessage, OperationalError } from "../errors.js";
 import type { Capability, ServerCapabilities, ServerTarget } from "../model.js";
 import { TOOLPRINT_VERSION } from "../version.js";
 import { mergeHeaders } from "./auth.js";
+import { connectionHint } from "./hints.js";
 
 const CLIENT_INFO = { name: "toolprint", version: TOOLPRINT_VERSION };
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 export interface ConnectOptions {
   timeoutMs?: number;
+}
+
+/** Append an actionable hint (auth, refused, ENOENT, timeout) to a failure,
+ * preserving the original message and cause. */
+function enrich(error: unknown, target: ServerTarget): OperationalError {
+  const base =
+    error instanceof OperationalError ? error : new OperationalError(getErrorMessage(error), error);
+  const hint = connectionHint(base.message, target);
+  return hint ? new OperationalError(`${base.message}\n  → ${hint}`, base) : base;
+}
+
+async function listAll(
+  client: Client,
+  target: ServerTarget,
+  timeoutMs: number,
+): Promise<ServerCapabilities> {
+  const [tools, prompts, resources, resourceTemplates] = await Promise.all([
+    listKind(client, target, "tool", timeoutMs),
+    listKind(client, target, "prompt", timeoutMs),
+    listKind(client, target, "resource", timeoutMs),
+    listKind(client, target, "resourceTemplate", timeoutMs),
+  ]);
+  return {
+    id: target.id,
+    transport: target.transport,
+    source: target.source,
+    tools,
+    prompts,
+    resources,
+    resourceTemplates,
+  };
+}
+
+/**
+ * Connect to one MCP server, list its capabilities, and run `fn` while the
+ * client is still open — the seam that lets `--probe` execute tools before the
+ * connection closes. The client is always closed afterward. Connect/list
+ * failures throw {@link OperationalError} (CLI exit 1) with an actionable hint;
+ * errors thrown by `fn` propagate unwrapped.
+ */
+export async function withConnectedServer<T>(
+  target: ServerTarget,
+  options: ConnectOptions,
+  fn: (client: Client, server: ServerCapabilities) => Promise<T>,
+): Promise<T> {
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  let client: Client;
+  try {
+    client = await connectClient(target, timeoutMs);
+  } catch (error) {
+    throw enrich(error, target);
+  }
+  try {
+    let server: ServerCapabilities;
+    try {
+      server = await listAll(client, target, timeoutMs);
+    } catch (error) {
+      throw enrich(error, target);
+    }
+    return await fn(client, server);
+  } finally {
+    await client.close().catch(() => {
+      /* best-effort cleanup */
+    });
+  }
 }
 
 /**
@@ -28,29 +94,7 @@ export async function connectAndList(
   target: ServerTarget,
   options: ConnectOptions = {},
 ): Promise<ServerCapabilities> {
-  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const client = await connectClient(target, timeoutMs);
-  try {
-    const [tools, prompts, resources, resourceTemplates] = await Promise.all([
-      listKind(client, target, "tool", timeoutMs),
-      listKind(client, target, "prompt", timeoutMs),
-      listKind(client, target, "resource", timeoutMs),
-      listKind(client, target, "resourceTemplate", timeoutMs),
-    ]);
-    return {
-      id: target.id,
-      transport: target.transport,
-      source: target.source,
-      tools,
-      prompts,
-      resources,
-      resourceTemplates,
-    };
-  } finally {
-    await client.close().catch(() => {
-      /* best-effort cleanup */
-    });
-  }
+  return withConnectedServer(target, options, async (_client, server) => server);
 }
 
 async function connectClient(target: ServerTarget, timeoutMs: number): Promise<Client> {

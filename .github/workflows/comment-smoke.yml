@@ -1,0 +1,47 @@
+name: PR comment smoke test
+
+# Dogfoods the `comment-on-pr` path end-to-end: scan a fixture with this PR's
+# built CLI, then post the sticky PR comment with the local pr-comment.mjs.
+# Runs the local code (not the published npm package), so it validates the
+# comment feature on the branch before it ships. Fails open on forked PRs
+# (read-only token) — the comment is skipped, the job stays green.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: comment-smoke-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  comment-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run build
+      - name: Scan a fixture and post the PR comment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          # A fixture with a planted poisoning finding, so the comment renders a
+          # real findings table. --fail-on critical keeps the job green (the
+          # finding is high); only an operational error (exit 1) should fail.
+          set +e
+          node dist/cli.js scan --config test/fixtures/mcp-poison.json \
+            --json --no-telemetry --fail-on critical > /tmp/toolprint-report.json
+          code=$?
+          set -e
+          cat /tmp/toolprint-report.json
+          node action/pr-comment.mjs /tmp/toolprint-report.json
+          if [ "$code" -eq 1 ]; then
+            echo "toolprint hit an operational error (exit 1)"; exit 1
+          fi

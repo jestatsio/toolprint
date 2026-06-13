@@ -1,6 +1,7 @@
 import { runChecks } from "./checks/registry.js";
 import type { Finding } from "./checks/types.js";
-import { connectAndList } from "./connect/index.js";
+import { withConnectedServer } from "./connect/index.js";
+import { probeTools, probeWarning, type ProbeRequest } from "./connect/probe.js";
 import { diffServer, type ServerDiff } from "./lockfile/diff.js";
 import type { Lockfile } from "./lockfile/schema.js";
 import { getErrorMessage } from "./errors.js";
@@ -25,7 +26,11 @@ export interface ScanResult {
 
 export interface ScanOptions {
   timeoutMs?: number;
-  probeOutputs?: boolean;
+  /** When set, execute tools and inspect their output (`--probe`). Undefined
+   * means the default read-only scan — no tool is ever called. */
+  probe?: ProbeRequest;
+  /** Sink for the loud "about to execute tools" warning (stderr in the CLI). */
+  warn?: (message: string) => void;
 }
 
 /**
@@ -40,18 +45,23 @@ export async function scanTargets(
 ): Promise<ScanResult> {
   const results: ServerScanResult[] = [];
   let hadOperationalError = false;
+  const timeoutMs = options.timeoutMs;
+  const probe = options.probe;
 
   for (const target of targets) {
     try {
-      const server = await connectAndList(target, { timeoutMs: options.timeoutMs });
-      const diff = diffServer(server, lockfile?.servers[target.id]);
-      const findings = runChecks({
-        target,
-        server,
-        diff,
-        probeOutputs: options.probeOutputs ?? false,
+      const result = await withConnectedServer(target, { timeoutMs }, async (client, server) => {
+        const diff = diffServer(server, lockfile?.servers[target.id]);
+        let probes;
+        if (probe) {
+          const warning = probeWarning(server, probe);
+          if (warning && options.warn) options.warn(warning);
+          probes = await probeTools(client, server, { ...probe, timeoutMs: timeoutMs ?? 30_000 });
+        }
+        const findings = runChecks({ target, server, diff, probes });
+        return { target, server, diff, findings };
       });
-      results.push({ target, server, diff, findings });
+      results.push(result);
     } catch (error) {
       hadOperationalError = true;
       results.push({ target, findings: [], error: getErrorMessage(error) });
