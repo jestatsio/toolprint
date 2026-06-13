@@ -5,6 +5,7 @@ import type { KindDiff, ServerDiff } from "../lockfile/diff.js";
 import { type CapabilityKind, kindLabel, type ServerCapabilities } from "../model.js";
 import type { ScanResult, ServerScanResult } from "../scan.js";
 import { TOOLPRINT_VERSION } from "../version.js";
+import type { BaselineDiff } from "./baseline.js";
 import { FEEDBACK_URL, TEAMS_URL } from "./footer.js";
 
 export interface HumanReportOptions {
@@ -22,6 +23,8 @@ export interface HumanReportOptions {
   failOn?: Severity;
   /** The authoritative gate decision from the caller (drives exit code 2). */
   failing?: boolean;
+  /** Present with `--baseline`: what changed since the prior scan (informational). */
+  baseline?: BaselineDiff;
 }
 
 /** Findings to display for a result. On a pin, drift is shown as the "Pinned"
@@ -41,6 +44,7 @@ interface Palette {
   gray: Colorize;
   bold: Colorize;
   cyan: Colorize;
+  inverse: Colorize;
 }
 
 // Built at runtime to avoid embedding a literal ESC control char in source.
@@ -59,6 +63,7 @@ function palette(enabled: boolean): Palette {
     gray: wrap(90),
     bold: wrap(1),
     cyan: wrap(36),
+    inverse: wrap(7),
   };
 }
 
@@ -75,6 +80,8 @@ const SEVERITY_ORDER_DESC: Severity[] = ["critical", "high", "medium", "low", "i
 function severityColor(p: Palette, severity: Severity): Colorize {
   switch (severity) {
     case "critical":
+      // Inverse red so the worst tier is unmistakable next to plain-red `high`.
+      return (text) => p.inverse(p.red(text));
     case "high":
       return p.red;
     case "medium":
@@ -221,6 +228,30 @@ function renderPinned(p: Palette, results: ServerScanResult[]): string[] {
   return [p.bold("Pinned:"), ...body, ""];
 }
 
+/** Informational "what changed since the prior scan" block (`--baseline`). It
+ * never affects the gate — it's a read on drift over time. */
+function renderBaseline(p: Palette, diff: BaselineDiff): string[] {
+  const { newFindings, resolvedFindings } = diff;
+  if (newFindings.length === 0 && resolvedFindings.length === 0) {
+    return [p.gray(`Since baseline (${diff.path}): no change.`), ""];
+  }
+  const lines: string[] = [
+    p.bold(
+      `Since baseline (${diff.path}): ${pluralize(newFindings.length, "new finding")}, ${
+        resolvedFindings.length
+      } resolved.`,
+    ),
+  ];
+  for (const finding of newFindings) {
+    lines.push(`  ${severityColor(p, finding.severity)(p.bold("NEW "))} ${finding.title}`);
+  }
+  for (const finding of resolvedFindings) {
+    lines.push(`  ${p.green(p.bold("GONE"))} ${p.gray(finding.title)}`);
+  }
+  lines.push("");
+  return lines;
+}
+
 export function renderHuman(scan: ScanResult, options: HumanReportOptions): string {
   const p = palette(options.color);
   const lines: string[] = [];
@@ -259,6 +290,11 @@ export function renderHuman(scan: ScanResult, options: HumanReportOptions): stri
   );
   if (options.failOn !== undefined && options.failing !== undefined) {
     lines.push(outcomeLine(p, displayed, options.failOn, options.failing));
+  }
+
+  if (options.baseline) {
+    lines.push("");
+    lines.push(...renderBaseline(p, options.baseline));
   }
 
   const lockDisplay = options.lockDisplay;

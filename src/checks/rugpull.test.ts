@@ -32,7 +32,6 @@ function inputFor(toolDiff: Partial<KindDiff>, isUnpinned = false): CheckInput {
     target: { id: "srv", transport: "stdio", source: "cmd" },
     server: serverCaps(),
     diff,
-    probeOutputs: false,
   };
 }
 

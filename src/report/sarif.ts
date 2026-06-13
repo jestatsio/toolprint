@@ -1,9 +1,9 @@
-import { createHash } from "node:crypto";
 import { relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Finding, Severity } from "../checks/types.js";
 import type { ScanResult } from "../scan.js";
 import { TOOLPRINT_VERSION } from "../version.js";
+import { findingId } from "./fingerprint.js";
 
 /**
  * SARIF 2.1.0 output for GitHub code scanning. Only the subset of the spec that
@@ -75,7 +75,7 @@ interface RuleMeta {
 }
 
 /** Display/group order for rules; also bounds the set of known checks. */
-const RULE_ORDER = ["rug-pull", "tool-poisoning", "secret-leak"] as const;
+const RULE_ORDER = ["rug-pull", "tool-poisoning", "secret-leak", "tool-output"] as const;
 
 const RULE_META: Record<string, RuleMeta> = {
   "rug-pull": {
@@ -104,6 +104,16 @@ const RULE_META: Record<string, RuleMeta> = {
       "Flags provider-prefixed or high-entropy credentials in env, headers, or url. " +
       "Secrets are redacted before they appear in any output.",
     securitySeverity: "7.5",
+  },
+  "tool-output": {
+    name: "Tool output poisoning (probe)",
+    short:
+      "Injected instructions or a leaked credential detected in live tool output under --probe.",
+    full:
+      "When --probe executes a tool, its output is scanned for the same poisoning and secret " +
+      "signals as static definitions. An instruction or credential in live output is at least as " +
+      "dangerous as one in a description — an agent acts on what a tool returns.",
+    securitySeverity: "9.0",
   },
 };
 
@@ -151,25 +161,6 @@ function rulesFor(findings: Finding[]): SarifRule[] {
   return [...known, ...unknown].map(ruleFor);
 }
 
-/**
- * Stable identity of a finding, so GitHub tracks one alert across runs instead
- * of churning. Excludes the volatile diff/evidence (which mutate as an attack
- * changes) but keeps the title: a server/capability can carry several findings
- * of the same check (multiple poisoning patterns, multiple leaked secrets), and
- * the title is what distinguishes them. Fields are JSON-encoded so a value
- * containing the delimiter can't collide with the next field.
- */
-function fingerprint(finding: Finding): string {
-  const key = JSON.stringify([
-    finding.checkId,
-    finding.serverId,
-    finding.capability?.kind ?? null,
-    finding.capability?.name ?? null,
-    finding.title,
-  ]);
-  return createHash("sha256").update(key).digest("hex");
-}
-
 function messageText(finding: Finding): string {
   const parts: string[] = [finding.title, "", finding.detail];
   if (finding.diff) {
@@ -200,7 +191,7 @@ function resultFor(finding: Finding, ruleIndex: number, anchorUri: string): Sari
     locations: [
       { physicalLocation: { artifactLocation: { uri: anchorUri }, region: { startLine: 1 } } },
     ],
-    partialFingerprints: { primaryLocationLineHash: fingerprint(finding) },
+    partialFingerprints: { primaryLocationLineHash: findingId(finding) },
     properties,
   };
 }

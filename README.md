@@ -18,13 +18,15 @@ Scanners exist for the one-shot check. What's missing is making trust **part of 
 
 ## What it does
 
-`toolprint scan <target>` connects to your MCP server(s), lists every tool, prompt, resource, and resource template (it never _calls_ a tool), and runs three checks:
+`toolprint scan <target>` connects to your MCP server(s), lists every tool, prompt, resource, and resource template (it never _calls_ a tool unless you opt in with [`--probe`](#probing-tool-output-opt-in)), and runs three checks:
 
-| Check              | Catches                                                                                                                                                                                                                                                                           |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Rug-pull**       | A tool, prompt, resource, or resource-template definition that changed since you pinned it — the headline being a changed **description** (the classic tool-poisoning vector).                                                                                                    |
-| **Tool poisoning** | Instruction-injection hidden anywhere an agent reads — the description, title, schema fields, or prompt arguments of any tool, **prompt, resource, or resource template** ("ignore previous instructions", "don't tell the user", exfiltration phrasing, invisible/bidi unicode). |
-| **Secret leak**    | Live-looking credentials embedded in your MCP config (`env`, `headers`, `url`) — always **redacted** in output.                                                                                                                                                                   |
+| Check              | Catches                                                                                                                                                                                                                                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Rug-pull**       | A tool, prompt, resource, or resource-template definition that changed since you pinned it — the headline being a changed **description** (the classic tool-poisoning vector).                                                                                                                               |
+| **Tool poisoning** | Instruction-injection hidden anywhere an agent reads — the description, title, schema fields, or prompt arguments of any tool, **prompt, resource, or resource template** ("ignore previous instructions", "don't tell the user", exfiltration phrasing, chat-template scaffolding, invisible/bidi unicode). |
+| **Secret leak**    | Live-looking credentials embedded in your MCP config (`env`, `headers`, `url`) or capability descriptions — OpenAI, Anthropic, AWS, GCP, GitHub, Hugging Face, Stripe, database URIs, and more — always **redacted** in output.                                                                              |
+
+When two independent high-severity injection signals land on the same capability (say an instruction-override _and_ hidden unicode), toolprint raises a single **`critical`** finding — the combination is almost never accidental.
 
 ## Quick start
 
@@ -72,7 +74,7 @@ Auth supplied this way is treated as an intentional runtime credential: it is **
 After you've pinned a server, if a tool's description changes, `scan` shows the diff and fails:
 
 ```
-toolprint v0.1.0 - 1 server
+toolprint v0.2.0 - 1 server
 
   x github (stdio) - 50 tools - 1 high
 
@@ -89,6 +91,38 @@ Failed: 1 finding at or above high (exit 2).
 In CI, that's a failed check. In a PR, re-pinning produces a `toolprint.lock` diff your teammate reviews before it merges.
 
 **Any drift to a capability you pinned is `high` and fails the default `--fail-on high`** — not just a changed description, but a changed input/output schema or metadata (new parameters can widen what a tool receives without touching its description) and a pinned capability that disappears. Drift is a deterministic hash comparison, so gating it never costs you a false positive. A genuinely _new_, never-pinned capability is `low` (review it, then pin) and a brand-new server is `info` (nothing to compare yet).
+
+## Probing tool output (opt-in)
+
+By default toolprint only reads tool _definitions_. With `--probe` it goes one step further and **executes** tools, then scans what they return for the same poisoning and secret signals — catching an attack that hides in a tool's _output_ rather than its description.
+
+Because executing an arbitrary tool can have side effects, `--probe` is conservative:
+
+```bash
+# Run only tools the server annotates read-only (readOnlyHint), with empty args.
+npx toolprint scan ./.vscode/mcp.json --probe
+
+# Force-run specific tools by name, regardless of annotation (repeatable).
+npx toolprint scan ./.vscode/mcp.json --probe-tool get_status --probe-tool whoami
+```
+
+- The bare `--probe` flag runs **only** tools the server declares `readOnlyHint: true`; read-only tools that require arguments are skipped.
+- `--probe-tool <name>` force-runs a named tool even if it isn't annotated read-only.
+- Before anything runs, toolprint prints a **loud warning to stderr** listing exactly which tools it will execute (so `--json`/`--sarif` on stdout stay clean). Only probe servers you trust to run side-effect-free.
+
+## Drift over time (`--baseline`)
+
+`--baseline` compares a scan against a **prior `--json` report** (not the lockfile) and tells you what's **new** and what's **resolved** since then:
+
+```bash
+npx toolprint scan ./.vscode/mcp.json --json > baseline.json
+# …later…
+npx toolprint scan ./.vscode/mcp.json --baseline baseline.json
+#   Since baseline (baseline.json): 1 new finding, 0 resolved.
+#     NEW  Instruction-override phrase in tool "helper"
+```
+
+It's purely informational — your exit code still comes from `--fail-on`. Every finding in `--json` now carries a stable `id` (and the report a `generatedAt` timestamp), so dashboards and baselines can track a finding across runs.
 
 ## In CI (GitHub Action)
 
@@ -135,6 +169,26 @@ steps:
 
 Each check (`rug-pull`, `tool-poisoning`, `secret-leak`) is a rule with a `security-severity`; each finding is a result, anchored to your config (or `toolprint.lock`) with a stable fingerprint so an alert tracks across runs. In SARIF mode findings become alerts rather than failing the job — gate via branch protection or keep a second plain `scan` step.
 
+### Pull-request comment
+
+Prefer a summary right in the PR conversation? Set `comment-on-pr: true` and toolprint upserts a single sticky comment (a per-severity findings table, refreshed on every push). The job still fails on findings as usual.
+
+```yaml
+permissions:
+  contents: read
+  pull-requests: write # required to post the comment
+
+steps:
+  - uses: actions/checkout@v4
+  - uses: jestatsio/toolprint@v1
+    with:
+      config: ./.vscode/mcp.json
+      fail-on: high
+      comment-on-pr: true
+```
+
+(`comment-on-pr` has no effect when `sarif-file` is set — code scanning already annotates the PR.)
+
 ## The lockfile
 
 `toolprint.lock` is JSON, committed at your project root. Each capability is pinned by a stable SHA-256 of its full definition, with the raw description stored so drift renders as a readable diff:
@@ -170,6 +224,9 @@ toolprint pin  [target]      Pin current definitions (alias for scan --update)
   --fail-on <sev>     Min severity that fails: info|low|medium|high|critical (default: high)
   --json              Machine-readable output (stable schema for CI)
   --sarif             SARIF 2.1.0 output for GitHub code scanning
+  --probe             Execute read-only-annotated tools and scan their output (off by default)
+  --probe-tool <name> Force --probe to execute this tool by name (repeatable)
+  --baseline <path>   Show findings new/resolved vs a prior --json report (informational)
   --lockfile <path>   Lockfile location (default: nearest toolprint.lock)
   --timeout <ms>      Per-server timeout (default: 30000)
   --header <h>        Add an HTTP header to http(s)/sse targets (repeatable)
@@ -190,13 +247,13 @@ toolprint pin  [target]      Pin current definitions (alias for scan --update)
 
 ## What toolprint does _not_ do
 
-- **Never executes your tools.** It lists definitions only — no `--dangerously-run` equivalent.
+- **Never executes your tools _by default_.** A plain scan lists definitions only. Execution happens solely when you opt in with [`--probe`](#probing-tool-output-opt-in), which then runs only read-only-annotated tools (or the ones you name) and warns first.
 - **No telemetry by default**, and it never transmits your configs, descriptions, hashes, or secrets.
 - It is not a runtime firewall or a full LLM-observability platform — it's a fast, local, CI-friendly trust gate.
 
 ## Continuous monitoring
 
-Want this watching your whole fleet — continuous re-scans, drift alerts when a server changes in production, and a team dashboard instead of one-off CLI runs? That's what we're building next. **[Tell us about your use case →](https://github.com/jestatsio/toolprint/issues/new?template=continuous-monitoring.yml)**
+`--baseline` already lets you diff a scan against a previous run — the first step toward watching drift over time. The bigger picture: continuous re-scans across your whole fleet, drift alerts when a server changes in production, and a team dashboard instead of one-off CLI runs. That's what we're building next. **[Tell us about your use case →](https://github.com/jestatsio/toolprint/issues/new?template=continuous-monitoring.yml)**
 
 ## Status
 

@@ -1,6 +1,8 @@
 import type { Finding, Severity } from "../checks/types.js";
 import type { ScanResult } from "../scan.js";
 import { TOOLPRINT_VERSION } from "../version.js";
+import type { BaselineDiff } from "./baseline.js";
+import { findingId } from "./fingerprint.js";
 
 /**
  * Stable machine-readable report. This schema is a contract: CI configs and any
@@ -17,9 +19,15 @@ export interface UpdateSummary {
   failed: boolean;
 }
 
+/** A finding plus its stable {@link findingId}, so consumers can track one
+ * finding across runs (the same id powers SARIF fingerprints and --baseline). */
+export type ReportedFinding = Finding & { id: string };
+
 export interface JsonReport {
   toolprintVersion: string;
   schemaVersion: 1;
+  /** ISO-8601 time the scan was rendered. Lets dashboards order runs. */
+  generatedAt: string;
   summary: {
     servers: number;
     findings: number;
@@ -32,10 +40,24 @@ export interface JsonReport {
     source: string;
     error?: string;
     capabilities?: { tools: number; prompts: number; resources: number; resourceTemplates: number };
-    findings: Finding[];
+    findings: ReportedFinding[];
   }>;
   /** Present only on `pin` / `scan --update`. */
   update?: UpdateSummary;
+  /** Present only with `--baseline`: findings new/resolved since the prior scan. */
+  baseline?: {
+    path: string;
+    new: ReportedFinding[];
+    resolved: BaselineDiff["resolvedFindings"];
+  };
+}
+
+export interface JsonReportOptions {
+  /** Injected by the caller so buildJsonReport stays pure/testable (mirrors how
+   * mergeLockfile takes its timestamp). */
+  generatedAt: string;
+  update?: UpdateSummary;
+  baseline?: BaselineDiff;
 }
 
 function countBySeverity(findings: Finding[]): Record<Severity, number> {
@@ -44,10 +66,15 @@ function countBySeverity(findings: Finding[]): Record<Severity, number> {
   return counts;
 }
 
-export function buildJsonReport(scan: ScanResult, update?: UpdateSummary): JsonReport {
+function withId(finding: Finding): ReportedFinding {
+  return { ...finding, id: findingId(finding) };
+}
+
+export function buildJsonReport(scan: ScanResult, options: JsonReportOptions): JsonReport {
   return {
     toolprintVersion: TOOLPRINT_VERSION,
     schemaVersion: 1,
+    generatedAt: options.generatedAt,
     summary: {
       servers: scan.results.length,
       findings: scan.findings.length,
@@ -69,9 +96,18 @@ export function buildJsonReport(scan: ScanResult, update?: UpdateSummary): JsonR
             },
           }
         : {}),
-      findings: result.findings,
+      findings: result.findings.map(withId),
     })),
-    ...(update ? { update } : {}),
+    ...(options.update ? { update: options.update } : {}),
+    ...(options.baseline
+      ? {
+          baseline: {
+            path: options.baseline.path,
+            new: options.baseline.newFindings.map(withId),
+            resolved: options.baseline.resolvedFindings,
+          },
+        }
+      : {}),
   };
 }
 

@@ -1,3 +1,4 @@
+import type { ToolProbe } from "../connect/probe.js";
 import type { ServerDiff } from "../lockfile/diff.js";
 import type { CapabilityKind, ServerCapabilities, ServerTarget } from "../model.js";
 
@@ -38,9 +39,9 @@ export interface CheckInput {
   target: ServerTarget;
   server: ServerCapabilities;
   diff: ServerDiff;
-  /** Whether `--probe` was passed (reserved for output inspection; we never
-   * execute tools by default). */
-  probeOutputs: boolean;
+  /** Results of executing tools under `--probe`. Absent (or empty) when probing
+   * did not run — toolprint never executes tools by default. */
+  probes?: ToolProbe[];
 }
 
 export interface Check {

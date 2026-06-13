@@ -13,6 +13,7 @@ import {
   writeLockfile,
 } from "./lockfile/io.js";
 import { exitCodeFor, isFailing } from "./outcome.js";
+import { type BaselineDiff, diffAgainstBaseline, loadBaseline } from "./report/baseline.js";
 import { renderHuman } from "./report/human.js";
 import { buildJsonReport, renderJson } from "./report/json.js";
 import { buildSarifReport, renderSarif, toArtifactUri } from "./report/sarif.js";
@@ -26,6 +27,8 @@ interface ScanCliOptions {
   json?: boolean;
   sarif?: boolean;
   probe?: boolean;
+  probeTool: string[]; // repeated --probe-tool; defaults to []
+  baseline?: string;
   lockfile?: string;
   timeout: string;
   header: string[]; // repeated --header; defaults to []
@@ -64,10 +67,21 @@ async function runScan(target: string | undefined, options: ScanCliOptions): Pro
     authHeaders,
   );
 
+  const probeTools = options.probeTool ?? [];
+  const probe =
+    options.probe || probeTools.length > 0
+      ? { includeReadOnly: Boolean(options.probe), tools: probeTools }
+      : undefined;
+
   const scan = await scanTargets(targets, lockfile, {
     timeoutMs,
-    probeOutputs: Boolean(options.probe),
+    probe,
+    warn: (message) => process.stderr.write(`${message}\n`),
   });
+
+  const baseline: BaselineDiff | undefined = options.baseline
+    ? diffAgainstBaseline(scan.findings, loadBaseline(options.baseline))
+    : undefined;
 
   const update = Boolean(options.update);
   let wrote = false;
@@ -91,14 +105,22 @@ async function runScan(target: string | undefined, options: ScanCliOptions): Pro
     process.stdout.write(renderSarif(buildSarifReport(scan, { anchorUri })));
   } else if (options.json) {
     const updateSummary = update ? { lockfile: lockDisplay, wrote, failed: failing } : undefined;
-    process.stdout.write(renderJson(buildJsonReport(scan, updateSummary)));
+    process.stdout.write(
+      renderJson(
+        buildJsonReport(scan, {
+          generatedAt: new Date().toISOString(),
+          update: updateSummary,
+          baseline,
+        }),
+      ),
+    );
   } else {
     const color =
       options.color !== false &&
       process.stdout.isTTY === true &&
       process.env.NO_COLOR === undefined;
     process.stdout.write(
-      renderHuman(scan, { color, lockDisplay, updated: update, wrote, failOn, failing }),
+      renderHuman(scan, { color, lockDisplay, updated: update, wrote, failOn, failing, baseline }),
     );
   }
 
@@ -115,7 +137,20 @@ function withScanOptions(command: Command): Command {
     )
     .option("--json", "output machine-readable JSON")
     .option("--sarif", "output SARIF 2.1.0 for GitHub code scanning")
-    .option("--probe", "reserved: inspect tool outputs (toolprint never executes tools by default)")
+    .option(
+      "--probe",
+      "EXECUTE tools the server annotates read-only (readOnlyHint — self-reported, not verified) with empty args and inspect their output (off by default; only probe servers you trust)",
+    )
+    .option(
+      "--probe-tool <name>",
+      "execute this tool by name regardless of annotation (repeatable); enables probing on its own",
+      collect,
+      [],
+    )
+    .option(
+      "--baseline <path>",
+      "compare against a prior --json report and show findings new/resolved since then (informational; does not affect the exit code)",
+    )
     .option("--lockfile <path>", "path to the lockfile (default: nearest toolprint.lock)")
     .option("--timeout <ms>", "per-server timeout in milliseconds", "30000")
     .option(
