@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderComment } from "./pr-comment.mjs";
+import { pullRequestNumber, renderComment, repoSlug } from "./pr-comment.mjs";
 
 const MARKER = "<!-- toolprint-report -->";
 
@@ -103,5 +103,77 @@ describe("renderComment", () => {
       report({ summary: { servers: 2, findings: 0, bySeverity: {}, operationalErrors: 1 } }),
     );
     expect(md).toContain("could not be scanned");
+  });
+});
+
+describe("escaping server-controlled text (CodeQL js/incomplete-sanitization)", () => {
+  /** Build a report whose only finding carries an attacker-chosen tool name. */
+  function withToolName(name) {
+    return report({
+      summary: { servers: 1, findings: 1, bySeverity: { high: 1 }, operationalErrors: 0 },
+      servers: [
+        {
+          id: "s",
+          transport: "stdio",
+          source: "x",
+          findings: [
+            {
+              checkId: "tool-poisoning",
+              severity: "high",
+              serverId: "s",
+              capability: { kind: "tool", name },
+              title: "t",
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  it("escapes a backslash before the pipe, so `\\|` cannot break out of a cell", () => {
+    // Without escaping backslashes first, `\|` becomes `\\|` — markdown renders
+    // that as a literal backslash plus an *unescaped* pipe, letting a hostile
+    // tool name forge the remaining columns of the row.
+    const md = renderComment(withToolName("evil\\|**OWNED**|x"));
+    expect(md).not.toMatch(/[^\\]\\\\\|/);
+    expect(md).toContain("\\\\");
+  });
+
+  it("still escapes plain pipes", () => {
+    expect(renderComment(withToolName("a|b"))).toContain("a\\|b");
+  });
+
+  it("neutralizes HTML and @mentions", () => {
+    const md = renderComment(withToolName("<img src=x> @octocat"));
+    expect(md).not.toContain("<img");
+    expect(md).not.toContain("@octocat");
+  });
+
+  it("collapses newlines that would end the table row", () => {
+    expect(renderComment(withToolName("a\nb"))).toContain("a b");
+  });
+});
+
+describe("URL inputs (CodeQL js/file-access-to-http)", () => {
+  it("accepts a real pull-request number", () => {
+    expect(pullRequestNumber({ pull_request: { number: 42 } })).toBe(42);
+    expect(pullRequestNumber({ number: 7 })).toBe(7);
+  });
+
+  it("rejects anything that could carry extra path segments into a URL", () => {
+    // These come from a file on disk and are interpolated into a request path.
+    for (const bad of ["1/../../orgs/evil", "1", 0, -3, 1.5, null, undefined, {}]) {
+      expect(pullRequestNumber({ number: bad })).toBeUndefined();
+    }
+  });
+
+  it("accepts a well-formed owner/name slug", () => {
+    expect(repoSlug("jestatsio/toolprint")).toBe("jestatsio/toolprint");
+  });
+
+  it("rejects a slug carrying extra path segments", () => {
+    for (const bad of ["a/b/c", "../../evil", "owner", "a/b?x=1", "a b/c", ""]) {
+      expect(repoSlug(bad)).toBeUndefined();
+    }
   });
 });
