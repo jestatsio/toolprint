@@ -48,6 +48,28 @@ toolprint deliberately connects to servers it does not trust and reads files it 
 - **Out of scope:** toolprint is not a runtime firewall. It does not stop a malicious server at the
   moment your agent calls it; it stops you from adopting one, and it makes a later change visible.
 
+## Accepted code-scanning findings
+
+CodeQL runs `security-extended` on every push and pull request. Three
+`js/file-access-to-http` alerts on `action/pr-comment.mjs` are **dismissed as
+accepted, not fixed**, and the reasoning is recorded here so it can be
+challenged rather than buried in a dashboard.
+
+The query flags file data reaching an outbound network request. In this script
+that is the entire feature: `comment-on-pr` reads a toolprint `--json` report
+from disk and posts it as a pull-request comment. The risk is bounded because:
+
+- the destination is the hard-coded `https://api.github.com`, with the
+  repository slug validated as `owner/name` before it reaches a URL;
+- the pull-request number and the comment id are validated as positive safe
+  integers, so a value carrying extra path segments cannot redirect the request;
+- secrets are redacted by the secret-leak check before they can enter a report;
+- `action.yml` already echoes the same report to the job log, so the comment
+  discloses nothing the workflow output does not.
+
+If the destination ever becomes configurable, this acceptance no longer holds
+and the flow must be re-reviewed.
+
 ## Supported versions
 
 Fixes land on the latest minor. Given the `0.x` line, please upgrade before reporting.
