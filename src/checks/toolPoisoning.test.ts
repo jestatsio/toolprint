@@ -40,7 +40,7 @@ function template(name: string, description: string): Capability {
 }
 
 type ServerParts = Partial<
-  Pick<ServerCapabilities, "tools" | "prompts" | "resources" | "resourceTemplates">
+  Pick<ServerCapabilities, "tools" | "prompts" | "resources" | "resourceTemplates" | "skills">
 >;
 
 function inputForServer(parts: ServerParts): CheckInput {
@@ -52,6 +52,7 @@ function inputForServer(parts: ServerParts): CheckInput {
     prompts: parts.prompts ?? [],
     resources: parts.resources ?? [],
     resourceTemplates: parts.resourceTemplates ?? [],
+    skills: parts.skills ?? [],
   };
   const target: ServerTarget = { id: "s", transport: "stdio", source: "x", command: "x" };
   const empty = { added: [], removed: [], changed: [] };

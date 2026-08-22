@@ -1,5 +1,5 @@
 name: "toolprint scan"
-description: "Scan MCP servers for tool poisoning, secret leaks, and silent rug-pulls; enforce the committed toolprint.lock."
+description: "Scan MCP servers and skill bundles for tool poisoning, secret leaks, and silent rug-pulls; enforce the committed toolprint.lock."
 branding:
   icon: shield
   color: purple
@@ -11,6 +11,22 @@ inputs:
     default: ""
   config:
     description: "Path to an MCP client config file (Claude Desktop / VS Code / Cursor)."
+    required: false
+    default: ""
+  skills:
+    description: "Scan SKILL.md bundles instead of an MCP server. Pass a directory, or `true` for the default skill roots."
+    required: false
+    default: ""
+  baseline:
+    description: "Path to a prior --json report. Shows what is new/resolved since then."
+    required: false
+    default: ""
+  fail-on-new:
+    description: "With `baseline`, fail only on findings that are new since it. Pre-existing findings still report."
+    required: false
+    default: "false"
+  ignore-file:
+    description: "Reviewed false positives to exclude from the failure decision (default: toolprint.ignore.json)."
     required: false
     default: ""
   fail-on:
@@ -52,6 +68,10 @@ runs:
       env:
         INPUT_TARGET: ${{ inputs.target }}
         INPUT_CONFIG: ${{ inputs.config }}
+        INPUT_SKILLS: ${{ inputs.skills }}
+        INPUT_BASELINE: ${{ inputs.baseline }}
+        INPUT_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
+        INPUT_IGNORE_FILE: ${{ inputs.ignore-file }}
         INPUT_LOCKFILE: ${{ inputs.lockfile }}
         INPUT_FAIL_ON: ${{ inputs.fail-on }}
         INPUT_VERSION: ${{ inputs.version }}
@@ -63,8 +83,16 @@ runs:
         CMD=(npx --yes "toolprint@${INPUT_VERSION}" scan)
         if [ -n "$INPUT_TARGET" ]; then CMD+=("$INPUT_TARGET"); fi
         if [ -n "$INPUT_CONFIG" ]; then CMD+=(--config "$INPUT_CONFIG"); fi
+        if [ "$INPUT_SKILLS" = "true" ]; then
+          CMD+=(--skills)
+        elif [ -n "$INPUT_SKILLS" ]; then
+          CMD+=(--skills "$INPUT_SKILLS")
+        fi
+        if [ -n "$INPUT_BASELINE" ]; then CMD+=(--baseline "$INPUT_BASELINE"); fi
+        if [ "$INPUT_FAIL_ON_NEW" = "true" ]; then CMD+=(--fail-on-new); fi
+        if [ -n "$INPUT_IGNORE_FILE" ]; then CMD+=(--ignore-file "$INPUT_IGNORE_FILE"); fi
         if [ -n "$INPUT_LOCKFILE" ]; then CMD+=(--lockfile "$INPUT_LOCKFILE"); fi
-        CMD+=(--fail-on "$INPUT_FAIL_ON" --no-telemetry)
+        CMD+=(--fail-on "$INPUT_FAIL_ON")
         if [ -n "$INPUT_SARIF_FILE" ]; then
           CMD+=(--sarif)
           echo "+ ${CMD[*]} > $INPUT_SARIF_FILE"

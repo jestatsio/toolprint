@@ -25,13 +25,14 @@ export const rugPullCheck: Check = {
         server.tools.length +
         server.prompts.length +
         server.resources.length +
-        server.resourceTemplates.length;
+        server.resourceTemplates.length +
+        server.skills.length;
       return [
         {
           checkId: RUG_PULL_CHECK_ID,
           severity: "info",
           serverId: server.id,
-          title: `Server "${server.id}" is not pinned`,
+          title: `${server.transport === "skills" ? "Skills directory" : "Server"} "${server.id}" is not pinned`,
           detail: `No lockfile entry exists for this server, so its ${count} capabilit${
             count === 1 ? "y is" : "ies are"
           } unverified. Pinning lets future scans detect silent changes.`,
@@ -47,6 +48,7 @@ export const rugPullCheck: Check = {
       ["prompt", diff.prompt],
       ["resource", diff.resource],
       ["resourceTemplate", diff.resourceTemplate],
+      ["skill", diff.skill],
     ];
 
     for (const [kind, kindDiff] of kinds) {
@@ -75,7 +77,9 @@ export const rugPullCheck: Check = {
             severity: "high",
             serverId: server.id,
             capability: { kind, name: change.name },
-            title: `${capitalize(kindLabel(kind))} "${change.name}" definition changed (schema/metadata) since it was pinned`,
+            title: `${capitalize(kindLabel(kind))} "${change.name}" definition changed (${
+              kind === "skill" ? "body/frontmatter" : "schema/metadata"
+            }) since it was pinned`,
             detail:
               "A non-description field (input/output schema, title, annotations) changed. New parameters " +
               "can widen what data a tool receives without touching its description.",

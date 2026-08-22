@@ -6,7 +6,92 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [0.2.0] - 2026-06-13
+## [0.3.0] - 2026-08-22
+
+The theme is **everything your agent reads**: widen from "the MCP config in this
+repo" to every agent client on the machine _and_ the skill bundles your agent
+loads, then make findings actionable when they are wrong.
+
+### Added
+
+- **Skill-bundle scanning (`--skills`).** A `SKILL.md` bundle is text an agent
+  reads and then follows — the same trust surface as a tool description, and just
+  as rewritable once you have come to trust it. `toolprint scan --skills` reads
+  [Agent Skills](https://agentskills.io) bundles from disk, runs the existing
+  poisoning and secret checks over them, and pins them in `toolprint.lock`.
+  Because the **entire file is hashed** — frontmatter _and_ body — a bundle whose
+  `name` and `description` are untouched while its instructions are rewritten is
+  still caught. That is **skill rug-pull detection**, which nothing else covers.
+  With no directory, the roots an agent actually loads from are discovered:
+  `.claude/skills`, `~/.claude/skills`, and `~/.claude/plugins/*/skills`. A new
+  `skill` capability kind and `skills` transport carry it through the lockfile,
+  diff, checks, and all three renderers unchanged.
+- **Client-wide discovery (`--all-clients`, `--client <id>`).** A repo's
+  `mcp.json` is rarely the whole story. toolprint now knows where **15 agent
+  clients** keep their MCP configuration across macOS, Linux, and Windows —
+  derived from [SkillRoute](https://github.com/erichare/skillroute)'s harness
+  manifests, vendored so there is no Python and no new dependency. Server ids are
+  namespaced by client (`claude-code:github`) so one lockfile can hold servers
+  from several clients without collisions. The four clients that store MCP
+  servers as TOML or YAML (Codex, Goose, Hermes, DeepSeek) are reported as
+  **explicitly skipped**; a trust tool must never imply coverage it does not have.
+- **Optional SkillRoute bridge (`--use-skillroute`).** With `--all-clients`, also
+  run `skillroute harness detect --json` to locate clients live, picking up ones
+  added after this toolprint was published. Opt-in, because it executes a
+  third-party binary — the same consent model as `--probe`. A missing or
+  unexpected response degrades to the built-in table and says why.
+- **Finding suppression (`toolprint.ignore.json`, `--ignore-file`).** Accept one
+  reviewed finding without lowering `--fail-on` for everything. Entries are keyed
+  by the stable finding `id` already used for SARIF fingerprints and `--baseline`,
+  require a written `reason`, and take an optional `expires` date. A suppressed
+  finding is **still reported** — marked `(suppressed)` in human output and
+  `"suppressed": true` in JSON — just not enforced. Expired entries warn and start
+  gating again; entries that match nothing are reported so the file can be pruned;
+  a malformed file is an error rather than a silent no-op.
+- **`--fail-on-new`.** With `--baseline`, gate only on findings that are new since
+  it, so toolprint can be adopted on a repo that is not clean yet. Pre-existing
+  findings still report in full. The outcome line now distinguishes "at or above
+  the gate but not new" from "below the gate" and from "suppressed", so a passing
+  run never misrepresents why it passed.
+- **New Action inputs:** `skills`, `baseline`, `fail-on-new`, and `ignore-file`.
+- **`SECURITY.md` and `CONTRIBUTING.md`**, plus a full `docs/` guide set covering
+  checks, the lockfile, targets, skills, auth, probing, CI, baselines,
+  suppressions, integrations, and the JSON contract.
+
+### Changed
+
+- **More config shapes are understood.** Zed's `context_servers`, Amp's
+  `amp.mcpServers`, and OpenCode's `mcp` map (array `command`, `environment` for
+  env) parse alongside `mcpServers`, `servers`, and `mcp.servers`. An entry marked
+  `"enabled": false` is reported as skipped rather than scanned.
+- **The poisoning check reads `instructions` fields**, alongside `description` and
+  `title`, so a skill bundle's body gets the same 11 injection signals as a tool
+  description — no separate detection code, and a new pattern covers both at once.
+- **Findings name the right thing.** A skills directory is no longer described as
+  a "server": remediation says "stop using this skill", drift reads
+  "(body/frontmatter)" instead of "(schema/metadata)", and the summary says
+  "source" when a skills root is in the scan. MCP-only output is unchanged.
+- **A suppressed high finding no longer paints its source red** in the status
+  line; it still appears in the findings list and the counts.
+- **README rebuilt** around the attack it catches, with a banner, badges, and
+  terminal captures under `docs/assets/`.
+
+### Fixed
+
+- **`--no-telemetry` was a phantom flag.** It was documented in `--help` and the
+  README as "disable anonymous usage telemetry", but no telemetry code has ever
+  existed in toolprint — a credibility problem on a trust tool. The flag is gone
+  from the docs and from `--help`, and `action.yml` no longer passes it. The CLI
+  still **accepts** it as a hidden no-op: the Action runs `npx toolprint@latest`,
+  so a workflow pinned to `@v1` pairs old `action.yml` with a new CLI, and
+  Commander hard-errors on an unknown option. It will be deleted at the next
+  major.
+- **A config with no MCP servers no longer aborts a multi-config run.** During
+  `--all-clients` discovery, a large `settings.json` with no MCP block is skipped
+  instead of failing the whole scan. Explicit single-target scans still error, as
+  before.
+
+## [0.2.0] - 2026-08-22
 
 ### Added
 

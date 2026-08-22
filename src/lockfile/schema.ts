@@ -19,6 +19,8 @@ export const LockedServerSchema = z.object({
   resources: z.record(z.string(), LockedCapabilitySchema).default({}),
   // Added in a later toolprint; `.default({})` keeps older lockfiles valid.
   resourceTemplates: z.record(z.string(), LockedCapabilitySchema).default({}),
+  // Skill bundles, added in 0.3. `.default({})` keeps every older lockfile valid.
+  skills: z.record(z.string(), LockedCapabilitySchema).default({}),
 });
 export type LockedServer = z.infer<typeof LockedServerSchema>;
 

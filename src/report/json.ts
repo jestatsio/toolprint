@@ -39,7 +39,13 @@ export interface JsonReport {
     transport: string;
     source: string;
     error?: string;
-    capabilities?: { tools: number; prompts: number; resources: number; resourceTemplates: number };
+    capabilities?: {
+      tools: number;
+      prompts: number;
+      resources: number;
+      resourceTemplates: number;
+      skills: number;
+    };
     findings: ReportedFinding[];
   }>;
   /** Present only on `pin` / `scan --update`. */
@@ -93,6 +99,7 @@ export function buildJsonReport(scan: ScanResult, options: JsonReportOptions): J
               prompts: result.server.prompts.length,
               resources: result.server.resources.length,
               resourceTemplates: result.server.resourceTemplates.length,
+              skills: result.server.skills.length,
             },
           }
         : {}),

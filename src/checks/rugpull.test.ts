@@ -16,6 +16,7 @@ function serverCaps(tools: Capability[] = []): ServerCapabilities {
     prompts: [],
     resources: [],
     resourceTemplates: [],
+    skills: [],
   };
 }
 
@@ -27,6 +28,7 @@ function inputFor(toolDiff: Partial<KindDiff>, isUnpinned = false): CheckInput {
     prompt: emptyKind,
     resource: emptyKind,
     resourceTemplate: emptyKind,
+    skill: emptyKind,
   };
   return {
     target: { id: "srv", transport: "stdio", source: "cmd" },

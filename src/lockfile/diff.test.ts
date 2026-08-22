@@ -17,6 +17,7 @@ function server(tools: Capability[]): ServerCapabilities {
     prompts: [],
     resources: [],
     resourceTemplates: [],
+    skills: [],
   };
 }
 

@@ -19,6 +19,7 @@ function inputFor(target: Partial<ServerTarget>, tools: Capability[] = []): Chec
     prompts: [],
     resources: [],
     resourceTemplates: [],
+    skills: [],
   };
   const empty = { added: [], removed: [], changed: [] };
   return {

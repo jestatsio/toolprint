@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { SEVERITIES, type Severity } from "./checks/types.js";
 import { applyAuthHeaders, collectAuthHeaders } from "./connect/auth.js";
-import { resolveTargets } from "./connect/target.js";
+import { AGENT_CLIENT_IDS } from "./connect/clients.js";
+import { discoverClientTargets, resolveSkillTargets, resolveTargets } from "./connect/target.js";
 import { getErrorMessage, OperationalError } from "./errors.js";
 import {
   displayLockPath,
@@ -13,6 +14,8 @@ import {
   writeLockfile,
 } from "./lockfile/io.js";
 import { exitCodeFor, isFailing } from "./outcome.js";
+import { applySuppressionsToScan, readSuppressions, resolveIgnorePath } from "./suppressions.js";
+import { findingId } from "./report/fingerprint.js";
 import { type BaselineDiff, diffAgainstBaseline, loadBaseline } from "./report/baseline.js";
 import { renderHuman } from "./report/human.js";
 import { buildJsonReport, renderJson } from "./report/json.js";
@@ -22,6 +25,10 @@ import { TOOLPRINT_VERSION } from "./version.js";
 
 interface ScanCliOptions {
   config?: string;
+  allClients?: boolean;
+  client: string[]; // repeated --client; defaults to []
+  useSkillroute?: boolean;
+  skills?: boolean | string;
   update?: boolean;
   failOn: string;
   json?: boolean;
@@ -29,11 +36,16 @@ interface ScanCliOptions {
   probe?: boolean;
   probeTool: string[]; // repeated --probe-tool; defaults to []
   baseline?: string;
+  failOnNew?: boolean;
+  ignoreFile?: string;
   lockfile?: string;
   timeout: string;
   header: string[]; // repeated --header; defaults to []
   bearer?: string;
-  telemetry: boolean; // commander maps --no-telemetry to telemetry:false
+  // `--no-telemetry` is accepted but does nothing: toolprint has never sent
+  // telemetry. Kept so CI pinned to the v1 Action (which passes the flag) keeps
+  // working against a newer CLI; removed at the next major.
+  telemetry?: boolean;
   color: boolean; // commander maps --no-color to color:false
 }
 
@@ -62,10 +74,55 @@ async function runScan(target: string | undefined, options: ScanCliOptions): Pro
   const lockPath = resolveLockfilePath(cwd, options.lockfile);
   const lockfile = readLockfile(lockPath);
   const authHeaders = collectAuthHeaders({ header: options.header, bearer: options.bearer });
-  const targets = applyAuthHeaders(
-    resolveTargets(target, { config: options.config }, cwd),
-    authHeaders,
-  );
+  const clientIds = options.client ?? [];
+  const acrossClients = Boolean(options.allClients) || clientIds.length > 0;
+  const skillDirs =
+    options.skills === undefined ? [] : typeof options.skills === "string" ? [options.skills] : [];
+  const scanSkills = options.skills !== undefined;
+
+  if (scanSkills && (acrossClients || target || options.config)) {
+    throw new OperationalError(
+      "--skills scans skill bundles on disk; run it on its own, not with a server target.",
+    );
+  }
+  if (acrossClients && (target || options.config)) {
+    throw new OperationalError(
+      "--all-clients/--client discovers configs itself; drop the explicit target or --config.",
+    );
+  }
+  for (const id of clientIds) {
+    if (!AGENT_CLIENT_IDS.includes(id)) {
+      throw new OperationalError(
+        `Unknown --client "${id}". Known clients: ${AGENT_CLIENT_IDS.join(", ")}.`,
+      );
+    }
+  }
+
+  let discoveredTargets;
+  if (scanSkills) {
+    discoveredTargets = resolveSkillTargets(skillDirs, cwd);
+  } else if (acrossClients) {
+    const discovery = discoverClientTargets({
+      cwd,
+      ...(clientIds.length > 0 ? { only: clientIds } : {}),
+      useSkillroute: Boolean(options.useSkillroute),
+    });
+    // Anything found but not scanned is announced on stderr, so `--json` and
+    // `--sarif` stdout stay clean while the gap is never silently hidden.
+    for (const note of discovery.notes) {
+      process.stderr.write(`toolprint: skipped ${note.client} (${note.path}): ${note.reason}\n`);
+    }
+    if (discovery.targets.length === 0) {
+      throw new OperationalError(
+        `No MCP servers found across ${discovery.scanned} agent client config(s). ` +
+          "Pass a target explicitly, or check `--client` spelling.",
+      );
+    }
+    discoveredTargets = discovery.targets;
+  } else {
+    discoveredTargets = resolveTargets(target, { config: options.config }, cwd);
+  }
+  const targets = applyAuthHeaders(discoveredTargets, authHeaders);
 
   const probeTools = options.probeTool ?? [];
   const probe =
@@ -73,15 +130,35 @@ async function runScan(target: string | undefined, options: ScanCliOptions): Pro
       ? { includeReadOnly: Boolean(options.probe), tools: probeTools }
       : undefined;
 
-  const scan = await scanTargets(targets, lockfile, {
+  const rawScan = await scanTargets(targets, lockfile, {
     timeoutMs,
     probe,
     warn: (message) => process.stderr.write(`${message}\n`),
   });
 
+  // Suppressions are applied before anything reads the findings, so the report,
+  // the baseline diff, and the exit code all agree on what is enforced.
+  const suppressions = readSuppressions(resolveIgnorePath(cwd, options.ignoreFile));
+  const applied = applySuppressionsToScan(rawScan, suppressions);
+  const scan = applied.scan;
+  for (const entry of applied.expired) {
+    process.stderr.write(
+      `toolprint: suppression ${entry.id} expired on ${entry.expires} — it no longer applies (${entry.reason})\n`,
+    );
+  }
+  for (const entry of applied.unused) {
+    process.stderr.write(
+      `toolprint: suppression ${entry.id} matched nothing — remove it from ${suppressions.path}\n`,
+    );
+  }
+
   const baseline: BaselineDiff | undefined = options.baseline
     ? diffAgainstBaseline(scan.findings, loadBaseline(options.baseline))
     : undefined;
+
+  if (options.failOnNew && !baseline) {
+    throw new OperationalError("--fail-on-new requires --baseline <path> to compare against.");
+  }
 
   const update = Boolean(options.update);
   let wrote = false;
@@ -95,7 +172,15 @@ async function runScan(target: string | undefined, options: ScanCliOptions): Pro
     }
   }
 
-  const failing = isFailing(scan.findings, { failOn, update });
+  const newFindingIds =
+    options.failOnNew && baseline
+      ? new Set(baseline.newFindings.map((finding) => findingId(finding)))
+      : undefined;
+  const failing = isFailing(scan.findings, {
+    failOn,
+    update,
+    ...(newFindingIds ? { newFindingIds } : {}),
+  });
   const lockDisplay = displayLockPath(cwd, lockPath);
 
   if (options.sarif) {
@@ -128,40 +213,72 @@ async function runScan(target: string | undefined, options: ScanCliOptions): Pro
 }
 
 function withScanOptions(command: Command): Command {
-  return command
-    .option("--config <path>", "MCP client config file to scan (Claude Desktop / VS Code / Cursor)")
-    .option(
-      "--fail-on <severity>",
-      "minimum severity that fails the scan (info|low|medium|high|critical)",
-      "high",
-    )
-    .option("--json", "output machine-readable JSON")
-    .option("--sarif", "output SARIF 2.1.0 for GitHub code scanning")
-    .option(
-      "--probe",
-      "EXECUTE tools the server annotates read-only (readOnlyHint — self-reported, not verified) with empty args and inspect their output (off by default; only probe servers you trust)",
-    )
-    .option(
-      "--probe-tool <name>",
-      "execute this tool by name regardless of annotation (repeatable); enables probing on its own",
-      collect,
-      [],
-    )
-    .option(
-      "--baseline <path>",
-      "compare against a prior --json report and show findings new/resolved since then (informational; does not affect the exit code)",
-    )
-    .option("--lockfile <path>", "path to the lockfile (default: nearest toolprint.lock)")
-    .option("--timeout <ms>", "per-server timeout in milliseconds", "30000")
-    .option(
-      "--header <header>",
-      'add an HTTP header to http(s)/sse targets, e.g. --header "Authorization: Bearer $TOKEN" (repeatable)',
-      collect,
-      [],
-    )
-    .option("--bearer <token>", 'shorthand for --header "Authorization: Bearer <token>"')
-    .option("--no-telemetry", "disable anonymous usage telemetry")
-    .option("--no-color", "disable colored output");
+  return (
+    command
+      .option(
+        "--config <path>",
+        "MCP client config file to scan (Claude Desktop / VS Code / Cursor)",
+      )
+      .option(
+        "--all-clients",
+        "discover and scan the MCP config of every agent client installed on this machine",
+      )
+      .option(
+        "--client <id>",
+        `scan only this agent client (repeatable): ${AGENT_CLIENT_IDS.join(", ")}`,
+        collect,
+        [],
+      )
+      .option(
+        "--skills [dir]",
+        "scan SKILL.md bundles on disk instead of an MCP server (defaults to .claude/skills, ~/.claude/skills, and plugin skills)",
+      )
+      .option(
+        "--use-skillroute",
+        "with --all-clients, also run `skillroute harness detect --json` to locate clients (executes the skillroute CLI; off by default)",
+      )
+      .option(
+        "--fail-on <severity>",
+        "minimum severity that fails the scan (info|low|medium|high|critical)",
+        "high",
+      )
+      .option("--json", "output machine-readable JSON")
+      .option("--sarif", "output SARIF 2.1.0 for GitHub code scanning")
+      .option(
+        "--probe",
+        "EXECUTE tools the server annotates read-only (readOnlyHint — self-reported, not verified) with empty args and inspect their output (off by default; only probe servers you trust)",
+      )
+      .option(
+        "--probe-tool <name>",
+        "execute this tool by name regardless of annotation (repeatable); enables probing on its own",
+        collect,
+        [],
+      )
+      .option(
+        "--baseline <path>",
+        "compare against a prior --json report and show findings new/resolved since then (informational; does not affect the exit code)",
+      )
+      .option(
+        "--fail-on-new",
+        "with --baseline, fail only on findings that are new since the baseline (pre-existing ones still report)",
+      )
+      .option(
+        "--ignore-file <path>",
+        "reviewed false positives to exclude from the failure decision (default: toolprint.ignore.json)",
+      )
+      .option("--lockfile <path>", "path to the lockfile (default: nearest toolprint.lock)")
+      .option("--timeout <ms>", "per-server timeout in milliseconds", "30000")
+      .option(
+        "--header <header>",
+        'add an HTTP header to http(s)/sse targets, e.g. --header "Authorization: Bearer $TOKEN" (repeatable)',
+        collect,
+        [],
+      )
+      .option("--bearer <token>", 'shorthand for --header "Authorization: Bearer <token>"')
+      // Hidden no-op: toolprint sends no telemetry. See ScanCliOptions.
+      .addOption(new Option("--no-telemetry").hideHelp())
+      .option("--no-color", "disable colored output")
+  );
 }
 
 const program = new Command();
