@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { OperationalError } from "../errors.js";
 import type { ServerTarget, TransportKind } from "../model.js";
@@ -231,9 +231,20 @@ export function parseConfigFile(path: string, options: ParseOptions = {}): Serve
 }
 
 export function parseConfigFileDetailed(path: string, options: ParseOptions = {}): ParseResult {
-  if (!existsSync(path) || !statSync(path).isFile()) {
-    if (options.lenient) return { targets: [], skipped: [{ id: path, reason: "not found" }] };
-    throw new OperationalError(`Config file not found: ${path}`);
+  // Read first and handle the failure, rather than checking existence and then
+  // reading: between the two calls the path can be replaced (TOCTOU), and the
+  // check buys nothing the read does not already tell us. A directory surfaces
+  // here as EISDIR.
+  let content: string;
+  try {
+    content = readFileSync(path, "utf8");
+  } catch (error) {
+    if (options.lenient) return { targets: [], skipped: [{ id: path, reason: "not readable" }] };
+    const code = (error as NodeJS.ErrnoException).code;
+    throw new OperationalError(
+      code === "ENOENT" ? `Config file not found: ${path}` : `Could not read config at ${path}`,
+      error,
+    );
   }
-  return parseConfigDetailed(readFileSync(path, "utf8"), path, options);
+  return parseConfigDetailed(content, path, options);
 }

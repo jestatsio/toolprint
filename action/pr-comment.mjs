@@ -31,12 +31,19 @@ const MAX_ROWS = 50;
 // table-breaking pipes/newlines, raw HTML, and `@mentions` that would otherwise
 // notify GitHub users when the comment renders.
 function escapeCell(text) {
-  return String(text)
-    .replace(/\r?\n/g, " ")
-    .replace(/\|/g, "\\|")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/@/g, "&#64;");
+  return (
+    String(text)
+      .replace(/\r?\n/g, " ")
+      // Backslashes MUST be escaped before the pipe below, or a server-supplied
+      // `\|` becomes `\\|` — which markdown renders as a literal backslash
+      // followed by an *unescaped* pipe, letting a hostile tool name break out
+      // of its table cell and forge the rest of the row.
+      .replace(/\\/g, "\\\\")
+      .replace(/\|/g, "\\|")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/@/g, "&#64;")
+  );
 }
 
 function location(finding) {
@@ -111,6 +118,25 @@ export function renderComment(report) {
   return lines.join("\n");
 }
 
+/**
+ * The PR number, read out of the runner's event payload and validated to be a
+ * positive integer. It is interpolated into request paths, so anything else —
+ * a string with slashes or dots, a float — must never reach a URL. Returns
+ * undefined when the event is not a pull request.
+ */
+export function pullRequestNumber(event) {
+  const raw = event?.pull_request?.number ?? event?.number;
+  return Number.isSafeInteger(raw) && raw > 0 ? raw : undefined;
+}
+
+/**
+ * The repository slug from the runner, validated as `owner/name`. Interpolated
+ * into the API base URL, so a value carrying extra path segments must not pass.
+ */
+export function repoSlug(repo) {
+  return /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(repo) ? repo : undefined;
+}
+
 async function findExistingComment(api, prNumber, headers) {
   const res = await fetch(`${api}/issues/${prNumber}/comments?per_page=100`, { headers });
   if (!res.ok) throw new Error(`GitHub API ${res.status} listing comments`);
@@ -129,13 +155,18 @@ async function upsert(report) {
     return;
   }
   const event = JSON.parse(readFileSync(eventPath, "utf8"));
-  const prNumber = event.pull_request?.number ?? event.number;
-  if (!prNumber) {
+  const prNumber = pullRequestNumber(event);
+  if (prNumber === undefined) {
     console.error("pr-comment: not a pull_request event — skipping comment.");
     return;
   }
 
-  const api = `https://api.github.com/repos/${repo}`;
+  const slug = repoSlug(repo);
+  if (!slug) {
+    console.error(`pr-comment: GITHUB_REPOSITORY is not "owner/name" — skipping comment.`);
+    return;
+  }
+  const api = `https://api.github.com/repos/${slug}`;
   const headers = {
     authorization: `Bearer ${token}`,
     accept: "application/vnd.github+json",
@@ -144,17 +175,19 @@ async function upsert(report) {
   };
   const body = renderComment(report);
   const existing = await findExistingComment(api, prNumber, headers);
-  const target = existing
-    ? `${api}/issues/comments/${existing.id}`
+  const existingId =
+    Number.isSafeInteger(existing?.id) && existing.id > 0 ? existing.id : undefined;
+  const target = existingId
+    ? `${api}/issues/comments/${existingId}`
     : `${api}/issues/${prNumber}/comments`;
   const res = await fetch(target, {
-    method: existing ? "PATCH" : "POST",
+    method: existingId ? "PATCH" : "POST",
     headers,
     body: JSON.stringify({ body }),
   });
   if (!res.ok)
-    throw new Error(`GitHub API ${res.status} ${existing ? "updating" : "creating"} comment`);
-  console.error(`pr-comment: ${existing ? "updated" : "created"} comment on PR #${prNumber}.`);
+    throw new Error(`GitHub API ${res.status} ${existingId ? "updating" : "creating"} comment`);
+  console.error(`pr-comment: ${existingId ? "updated" : "created"} comment on PR #${prNumber}.`);
 }
 
 // Run only when executed directly (not when imported by a test).
