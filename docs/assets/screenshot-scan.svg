@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="430" viewBox="0 0 960 430" role="img" aria-labelledby="sc-title sc-desc">
+  <title id="sc-title">toolprint pinning a fleet of MCP servers</title>
+  <desc id="sc-desc">Terminal screenshot: toolprint pin connects to three MCP servers, reports each as clean, writes their capabilities into toolprint.lock, and exits 0.</desc>
+  <rect width="960" height="430" rx="18" fill="#0f172a"/>
+  <rect x="0" y="0" width="960" height="44" rx="18" fill="#111827"/>
+  <circle cx="28" cy="22" r="6" fill="#ef4444"/>
+  <circle cx="50" cy="22" r="6" fill="#f59e0b"/>
+  <circle cx="72" cy="22" r="6" fill="#22c55e"/>
+  <text x="104" y="27" fill="#cbd5e1" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14">toolprint pin</text>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13">
+    <text x="28" y="86" fill="#5EEAD4" font-size="14">$ npx toolprint pin ./.vscode/mcp.json</text>
+
+    <text x="28" y="126" fill="#f8fafc" font-weight="700">toolprint <tspan fill="#64748B" font-weight="400">v0.3.0 - 3 servers</tspan></text>
+    <text x="44" y="158" fill="#4ADE80">ok <tspan fill="#f8fafc" font-weight="700">github</tspan> <tspan fill="#64748B">(stdio) - 50 tools -</tspan> <tspan fill="#4ADE80">clean</tspan></text>
+    <text x="44" y="182" fill="#4ADE80">ok <tspan fill="#f8fafc" font-weight="700">filesystem</tspan> <tspan fill="#64748B">(stdio) - 12 tools -</tspan> <tspan fill="#4ADE80">clean</tspan></text>
+    <text x="44" y="206" fill="#4ADE80">ok <tspan fill="#f8fafc" font-weight="700">linear</tspan> <tspan fill="#64748B">(http) - 23 tools -</tspan> <tspan fill="#4ADE80">clean</tspan></text>
+
+    <text x="28" y="246" fill="#E2E8F0" font-weight="700">Pinned:</text>
+    <text x="44" y="270" fill="#CBD5E1">github · pinned 50 tools</text>
+    <text x="44" y="294" fill="#CBD5E1">filesystem · pinned 12 tools</text>
+    <text x="44" y="318" fill="#CBD5E1">linear · pinned 23 tools</text>
+
+    <text x="28" y="358" fill="#E2E8F0" font-weight="700">Summary: <tspan font-weight="400" fill="#4ADE80">clean</tspan><tspan font-weight="400" fill="#64748B"> across 3 servers</tspan></text>
+    <text x="28" y="382" fill="#4ADE80" font-weight="700">Passed: nothing at or above high (exit 0).</text>
+    <text x="28" y="406" fill="#64748B">Pinned to <tspan fill="#A7F3D0">toolprint.lock</tspan> — review the diff and commit it.</text>
+  </g>
+</svg>
