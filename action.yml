@@ -1,5 +1,6 @@
 name: "toolprint scan"
-description: "Scan MCP servers and skill bundles for tool poisoning, secret leaks, and silent rug-pulls; enforce the committed toolprint.lock."
+# GitHub Marketplace caps this at 125 characters — keep it short.
+description: "Scan MCP servers and skill bundles for tool poisoning, secret leaks, and silent rug-pulls; enforce toolprint.lock."
 branding:
   icon: shield
   color: purple

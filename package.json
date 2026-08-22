@@ -1,6 +1,6 @@
 {
   "name": "toolprint",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "package-lock.json for MCP trust — scan MCP servers and skill bundles for tool poisoning, secret leaks, and silent rug-pulls, with a committed, reviewable lockfile.",
   "keywords": [
     "mcp",

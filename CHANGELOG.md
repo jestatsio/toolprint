@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-22
+
+### Fixed
+
+- **The Action's `description` exceeded the GitHub Marketplace limit.** At 128
+  characters it was rejected by Marketplace publishing, which caps descriptions
+  at 125. Shortened to 114. No behavior change — the Marketplace validates
+  `action.yml` at the release tag, so the fix needs its own release to take
+  effect.
+
 ## [0.3.0] - 2026-08-22
 
 The theme is **everything your agent reads**: widen from "the MCP config in this

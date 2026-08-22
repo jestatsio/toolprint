@@ -80,6 +80,14 @@ Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`, 
 6. Publish a GitHub release for the tag. `.github/workflows/release.yml` publishes to npm via OIDC
    trusted publishing; `prepublishOnly` re-runs typecheck, tests, and build first.
 
+### GitHub Marketplace
+
+The Action is listed on the Marketplace, and Marketplace validates `action.yml`
+**at the release tag** — not on `main`. A metadata mistake therefore cannot be
+fixed by a commit; it needs a new tagged release (0.3.1 shipped for exactly
+this). `action/metadata.test.mjs` guards the rules that are otherwise invisible
+until publish time: the 125-character description cap, and required branding.
+
 ### Removing a CLI flag
 
 The Action runs `npx toolprint@latest` by default, so a workflow pinned to `@v1` pairs **old
