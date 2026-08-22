@@ -8,7 +8,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { getErrorMessage, OperationalError } from "../errors.js";
-import type { Capability, ServerCapabilities, ServerTarget } from "../model.js";
+import type { Capability, McpCapabilityKind, ServerCapabilities, ServerTarget } from "../model.js";
 import { TOOLPRINT_VERSION } from "../version.js";
 import { mergeHeaders } from "./auth.js";
 import { connectionHint } from "./hints.js";
@@ -48,6 +48,7 @@ async function listAll(
     prompts,
     resources,
     resourceTemplates,
+    skills: [],
   };
 }
 
@@ -171,7 +172,7 @@ const LIST_METHODS = {
 async function listKind(
   client: Client,
   target: ServerTarget,
-  kind: Capability["kind"],
+  kind: McpCapabilityKind,
   timeoutMs: number,
 ): Promise<Capability[]> {
   const out: Capability[] = [];

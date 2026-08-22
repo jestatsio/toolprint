@@ -81,6 +81,7 @@ export function toLockedServer(server: ServerCapabilities): LockedServer {
     prompts: toLockedRecord(server.prompts),
     resources: toLockedRecord(server.resources),
     resourceTemplates: toLockedRecord(server.resourceTemplates),
+    skills: toLockedRecord(server.skills),
   };
 }
 
@@ -122,6 +123,7 @@ function orderServers(servers: Record<string, LockedServer>): Record<string, Loc
       prompts: sortRecord(server.prompts),
       resources: sortRecord(server.resources),
       resourceTemplates: sortRecord(server.resourceTemplates),
+      skills: sortRecord(server.skills),
     };
   }
   return out;

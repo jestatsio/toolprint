@@ -33,6 +33,10 @@ export interface Finding {
   remediation?: string;
   /** For rug-pull description changes: the before/after, for a field-level diff. */
   diff?: { before?: string; after?: string };
+  /** Set when a reviewed entry in `toolprint.ignore.json` covers this finding.
+   * Suppressed findings are excluded from the failure decision but still
+   * reported — never hidden. */
+  suppressed?: boolean;
 }
 
 export interface CheckInput {

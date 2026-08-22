@@ -70,6 +70,7 @@ export const secretLeakCheck: Check = {
       ...server.prompts,
       ...server.resources,
       ...server.resourceTemplates,
+      ...server.skills,
     ];
     for (const cap of caps) {
       if (!cap.description) continue;

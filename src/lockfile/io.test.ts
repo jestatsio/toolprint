@@ -21,6 +21,7 @@ function server(id: string, tools: Capability[]): ServerCapabilities {
     prompts: [],
     resources: [],
     resourceTemplates: [],
+    skills: [],
   };
 }
 

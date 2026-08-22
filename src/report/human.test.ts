@@ -19,6 +19,7 @@ function caps(tools: Capability[]): ServerCapabilities {
     prompts: [],
     resources: [],
     resourceTemplates: [],
+    skills: [],
   };
 }
 

@@ -1,7 +1,7 @@
 {
   "name": "toolprint",
-  "version": "0.2.0",
-  "description": "package-lock.json for MCP trust — scan MCP servers for tool poisoning, secret leaks, and silent tool rug-pulls, with a committed, reviewable lockfile.",
+  "version": "0.3.0",
+  "description": "package-lock.json for MCP trust — scan MCP servers and skill bundles for tool poisoning, secret leaks, and silent rug-pulls, with a committed, reviewable lockfile.",
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -10,7 +10,9 @@
     "lockfile",
     "rug-pull",
     "supply-chain",
-    "ai-agents"
+    "ai-agents",
+    "agent-skills",
+    "prompt-injection"
   ],
   "license": "Apache-2.0",
   "author": "jestatsio",

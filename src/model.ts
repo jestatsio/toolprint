@@ -4,9 +4,15 @@
  * and checks can treat them consistently.
  */
 
-export type TransportKind = "stdio" | "sse" | "http";
+/** How a capability source is reached. `skills` is a directory of SKILL.md
+ * bundles on disk rather than a network/stdio MCP server. */
+export type TransportKind = "stdio" | "sse" | "http" | "skills";
 
-export type CapabilityKind = "tool" | "prompt" | "resource" | "resourceTemplate";
+export type CapabilityKind = "tool" | "prompt" | "resource" | "resourceTemplate" | "skill";
+
+/** The kinds an MCP server can list. Skills are read from disk, not from MCP,
+ * so they are excluded here — there is no `skills/list` method. */
+export type McpCapabilityKind = Exclude<CapabilityKind, "skill">;
 
 /** Human-readable label for a kind (the raw kind value stays machine-friendly). */
 const KIND_LABELS: Record<CapabilityKind, string> = {
@@ -14,6 +20,7 @@ const KIND_LABELS: Record<CapabilityKind, string> = {
   prompt: "prompt",
   resource: "resource",
   resourceTemplate: "resource template",
+  skill: "skill",
 };
 
 export function kindLabel(kind: CapabilityKind): string {
@@ -68,6 +75,9 @@ export interface ServerCapabilities {
   prompts: Capability[];
   resources: Capability[];
   resourceTemplates: Capability[];
+  /** SKILL.md bundles. Always empty for an MCP server; populated only when the
+   * source is a skills directory. */
+  skills: Capability[];
 }
 
 export const CAPABILITY_KINDS: CapabilityKind[] = [
@@ -75,4 +85,5 @@ export const CAPABILITY_KINDS: CapabilityKind[] = [
   "prompt",
   "resource",
   "resourceTemplate",
+  "skill",
 ];

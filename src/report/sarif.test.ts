@@ -25,6 +25,7 @@ function scanWith(findings: Finding[]): ScanResult {
       prompts: [],
       resources: [],
       resourceTemplates: [],
+      skills: [],
     },
     findings,
   };

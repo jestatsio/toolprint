@@ -105,6 +105,7 @@ function capabilitySummary(server: ServerCapabilities): string {
   if (server.resourceTemplates.length) {
     parts.push(pluralize(server.resourceTemplates.length, "resource template"));
   }
+  if (server.skills.length) parts.push(pluralize(server.skills.length, "skill"));
   return parts.length ? parts.join(", ") : "no capabilities";
 }
 
@@ -129,10 +130,25 @@ function outcomeLine(p: Palette, displayed: Finding[], failOn: Severity, failing
     const gating = displayed.filter((f) => meetsThreshold(f.severity, failOn)).length;
     return p.red(p.bold(`Failed: ${pluralize(gating, "finding")} at or above ${failOn} (exit 2).`));
   }
+  // Not failing. Separate the three very different reasons a finding did not
+  // gate, because "below the gate" would misdescribe the other two.
+  const suppressed = displayed.filter((f) => f.suppressed === true);
+  const enforceable = displayed.filter((f) => f.suppressed !== true);
+  // Not failing while something sits at/above the threshold means --fail-on-new
+  // spared it: the finding is real and reported, just not newly introduced.
+  const preExisting = enforceable.filter((f) => meetsThreshold(f.severity, failOn));
+  const belowGate = enforceable.length - preExisting.length;
+
   if (displayed.length > 0) {
-    // Not failing, so every shown finding sits below the gate.
+    const parts: string[] = [];
+    if (preExisting.length > 0) {
+      parts.push(`${pluralize(preExisting.length, "finding")} at or above ${failOn} but not new`);
+    }
+    if (belowGate > 0) parts.push(`${pluralize(belowGate, "finding")} below the gate`);
+    if (suppressed.length > 0) parts.push(`${pluralize(suppressed.length, "finding")} suppressed`);
+    const hint = belowGate > 0 ? " Lower --fail-on to gate them." : "";
     return p.yellow(
-      `Passed --fail-on ${failOn}: ${pluralize(displayed.length, "finding")} below the gate, not enforced (exit 0). Lower --fail-on to gate them.`,
+      `Passed --fail-on ${failOn}: ${parts.join(", ")}, not enforced (exit 0).${hint}`,
     );
   }
   return p.green(`Passed: nothing at or above ${failOn} (exit 0).`);
@@ -145,7 +161,10 @@ function serverStatusLine(p: Palette, result: ServerScanResult, findings: Findin
   }
   const caps = result.server ? capabilitySummary(result.server) : "";
   const counts = countBySeverity(findings);
-  const hasHigh = counts.critical > 0 || counts.high > 0;
+  // A suppressed finding was reviewed and accepted, so it must not paint the
+  // server red — it still appears in the counts and in the findings list.
+  const enforced = countBySeverity(findings.filter((finding) => finding.suppressed !== true));
+  const hasHigh = enforced.critical > 0 || enforced.high > 0;
   const hasFindings = findings.length > 0;
   const icon = hasHigh ? p.red("x") : hasFindings ? p.yellow("!") : p.green("ok");
   const status = hasFindings ? summarizeCounts(counts) : p.green("clean");
@@ -164,7 +183,8 @@ function renderFinding(p: Palette, finding: Finding): string[] {
   const location = finding.capability
     ? `${finding.serverId} ${p.gray("·")} ${kindLabel(finding.capability.kind)} "${finding.capability.name}"`
     : finding.serverId;
-  const lines: string[] = [`  ${tag} ${p.gray(finding.checkId)}  ${location}`];
+  const mark = finding.suppressed ? ` ${p.gray("(suppressed)")}` : "";
+  const lines: string[] = [`  ${tag} ${p.gray(finding.checkId)}  ${location}${mark}`];
   lines.push(`      ${finding.title}`);
   if (finding.diff) lines.push(...renderDiff(p, finding.diff.before, finding.diff.after));
   if (finding.evidence) lines.push(`      ${p.gray(finding.evidence)}`);
@@ -172,13 +192,14 @@ function renderFinding(p: Palette, finding: Finding): string[] {
   return lines;
 }
 
-const PIN_KINDS: CapabilityKind[] = ["tool", "prompt", "resource", "resourceTemplate"];
+const PIN_KINDS: CapabilityKind[] = ["tool", "prompt", "resource", "resourceTemplate", "skill"];
 
 function kindDiffOf(diff: ServerDiff, kind: CapabilityKind): KindDiff {
   if (kind === "tool") return diff.tool;
   if (kind === "prompt") return diff.prompt;
   if (kind === "resource") return diff.resource;
-  return diff.resourceTemplate;
+  if (kind === "resourceTemplate") return diff.resourceTemplate;
+  return diff.skill;
 }
 
 /** Calm "here's what I just pinned" view of a server's accepted drift. Unlike a
@@ -252,15 +273,23 @@ function renderBaseline(p: Palette, diff: BaselineDiff): string[] {
   return lines;
 }
 
+/** "server" reads wrong for a skills directory. Only widen the noun when one is
+ * actually present, so MCP-only output stays exactly as it was. */
+function sourceNoun(scan: ScanResult): string {
+  const hasSkills = scan.results.some((result) => result.target.transport === "skills");
+  return hasSkills ? "source" : "server";
+}
+
 export function renderHuman(scan: ScanResult, options: HumanReportOptions): string {
   const p = palette(options.color);
   const lines: string[] = [];
+  const noun = sourceNoun(scan);
 
   lines.push("");
   lines.push(
     `${p.bold("toolprint")} ${p.gray(`v${TOOLPRINT_VERSION}`)} ${p.gray("-")} ${pluralize(
       scan.results.length,
-      "server",
+      noun,
     )}`,
   );
   lines.push("");
@@ -286,7 +315,7 @@ export function renderHuman(scan: ScanResult, options: HumanReportOptions): stri
   const errorNote =
     errorCount > 0 ? ` ${p.gray(`(${pluralize(errorCount, "connection error")})`)}` : "";
   lines.push(
-    `${p.bold("Summary:")} ${summarizeCounts(totals)} across ${pluralize(scan.results.length, "server")}${errorNote}`,
+    `${p.bold("Summary:")} ${summarizeCounts(totals)} across ${pluralize(scan.results.length, noun)}${errorNote}`,
   );
   if (options.failOn !== undefined && options.failing !== undefined) {
     lines.push(outcomeLine(p, displayed, options.failOn, options.failing));

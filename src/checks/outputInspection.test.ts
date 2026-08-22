@@ -13,6 +13,7 @@ function inputWith(probes?: ToolProbe[]): CheckInput {
     prompts: [],
     resources: [],
     resourceTemplates: [],
+    skills: [],
   };
   const target: ServerTarget = { id: "s", transport: "stdio", source: "x", command: "x" };
   const empty = { added: [], removed: [], changed: [] };

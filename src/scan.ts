@@ -2,6 +2,7 @@ import { runChecks } from "./checks/registry.js";
 import type { Finding } from "./checks/types.js";
 import { withConnectedServer } from "./connect/index.js";
 import { probeTools, probeWarning, type ProbeRequest } from "./connect/probe.js";
+import { readSkillsSource } from "./connect/skills.js";
 import { diffServer, type ServerDiff } from "./lockfile/diff.js";
 import type { Lockfile } from "./lockfile/schema.js";
 import { getErrorMessage } from "./errors.js";
@@ -50,6 +51,15 @@ export async function scanTargets(
 
   for (const target of targets) {
     try {
+      // A skills directory is read straight off disk — there is nothing to
+      // connect to, and `--probe` has no meaning for a static bundle.
+      if (target.transport === "skills") {
+        const server = readSkillsSource(target);
+        const diff = diffServer(server, lockfile?.servers[target.id]);
+        results.push({ target, server, diff, findings: runChecks({ target, server, diff }) });
+        continue;
+      }
+
       const result = await withConnectedServer(target, { timeoutMs }, async (client, server) => {
         const diff = diffServer(server, lockfile?.servers[target.id]);
         let probes;

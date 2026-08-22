@@ -1,9 +1,12 @@
 import { RUG_PULL_CHECK_ID } from "./checks/rugpull.js";
 import { meetsThreshold, type Finding, type Severity } from "./checks/types.js";
+import { findingId } from "./report/fingerprint.js";
 
 export interface OutcomeOptions {
   /** Minimum severity that fails the run. */
   failOn: Severity;
+  /** When set (`--fail-on-new`), only findings with these ids can fail the run. */
+  newFindingIds?: Set<string>;
   /** True for `pin` / `scan --update`. Pinning explicitly accepts drift, so
    * rug-pull findings are excluded from the failure decision; poisoning and
    * secret leaks still gate (you should not silently pin dangerous state). */
@@ -12,17 +15,25 @@ export interface OutcomeOptions {
 
 /**
  * The findings that count toward failure. On a verify (`scan`) that's all of
- * them; on a pin it's everything except drift, which is being accepted.
+ * them; on a pin it's everything except drift, which is being accepted. A
+ * finding covered by `toolprint.ignore.json` never gates — it is still
+ * reported, just not enforced.
  */
 export function gatingFindings(findings: Finding[], update: boolean): Finding[] {
-  if (!update) return findings;
-  return findings.filter((finding) => finding.checkId !== RUG_PULL_CHECK_ID);
+  const enforceable = findings.filter((finding) => finding.suppressed !== true);
+  if (!update) return enforceable;
+  return enforceable.filter((finding) => finding.checkId !== RUG_PULL_CHECK_ID);
 }
 
 export function isFailing(findings: Finding[], options: OutcomeOptions): boolean {
-  return gatingFindings(findings, options.update).some((finding) =>
-    meetsThreshold(finding.severity, options.failOn),
-  );
+  const candidates = gatingFindings(findings, options.update);
+  // `--fail-on-new` narrows the gate to findings absent from the baseline, so a
+  // team can adopt toolprint on a dirty repo and still block anything newly
+  // introduced. Identity comes from the same stable finding id as --baseline.
+  const gated = options.newFindingIds
+    ? candidates.filter((finding) => options.newFindingIds?.has(findingId(finding)))
+    : candidates;
+  return gated.some((finding) => meetsThreshold(finding.severity, options.failOn));
 }
 
 /** Exit codes are a documented contract — CI configs depend on them. */
