@@ -1,7 +1,7 @@
 ---
 description: Pin current MCP server and skill definitions into toolprint.lock after review
 argument-hint: "[target] — config path, URL, npx:<package>, or blank for auto-discovery"
-allowed-tools: mcp__toolprint__scan, mcp__toolprint__pin, Bash(npx toolprint@0.4.0 scan:*), Bash(npx toolprint@0.4.0 pin:*)
+allowed-tools: mcp__plugin_toolprint_toolprint__scan, mcp__toolprint__scan, mcp__plugin_toolprint_toolprint__pin, mcp__toolprint__pin, Bash(npx toolprint@0.4.0 scan:*), Bash(npx toolprint@0.4.0 pin:*)
 ---
 
 Pin this project's current MCP definitions into `toolprint.lock`.

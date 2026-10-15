@@ -4,6 +4,9 @@ import type { ServerCapabilities, ServerTarget } from "../model.js";
 import { outputInspectionCheck } from "./outputInspection.js";
 import type { CheckInput } from "./types.js";
 
+// Assembled from fragments so no credential-shaped literal is committed.
+const FAKE_ANTHROPIC = ["sk-", "ant-", "api03-", "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789"].join("");
+
 function inputWith(probes?: ToolProbe[]): CheckInput {
   const server: ServerCapabilities = {
     id: "s",
@@ -74,7 +77,7 @@ describe("outputInspectionCheck", () => {
       {
         name: "get_status",
         status: "ok",
-        outputText: "token: sk-ant-api03-AbCdEfGhIjKlMnOpQrStUvWx0123456789",
+        outputText: `token: ${FAKE_ANTHROPIC}`,
       },
     ]);
     expect(findings.some((f) => f.title.includes("Anthropic API key"))).toBe(true);
