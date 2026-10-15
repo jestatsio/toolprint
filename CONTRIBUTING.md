@@ -78,7 +78,7 @@ Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`, 
    This step is easy to forget and silently breaks every pinned workflow. It is not optional.
 
 6. Build the plugin packages and publish a GitHub release for the tag with them attached:
-   `npm run package:plugins`, then attach the four files in `release-dist/`.
+   `npm run package:plugins`, then attach the files in `release-dist/` (four packages plus `checksums.json`; five packages since 0.4.1).
    `.github/workflows/release.yml` publishes to npm via OIDC trusted publishing;
    `prepublishOnly` re-runs typecheck, tests, and build first. The MCP Registry entry
    publishes itself afterwards (`.github/workflows/mcp-registry.yml`).
