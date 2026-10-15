@@ -1,0 +1,49 @@
+{
+  "manifest_version": "0.3",
+  "name": "toolprint",
+  "display_name": "toolprint by JEStats",
+  "version": "0.4.0",
+  "description": "Pin and verify the MCP tools your agent trusts. Scan MCP servers and skill bundles for tool poisoning, secret leaks, and silent rug-pulls.",
+  "long_description": "toolprint is package-lock.json for MCP trust. It connects to your MCP servers, fingerprints every tool, prompt, resource, and skill definition into a committed toolprint.lock, and then catches silent changes (rug-pulls), hidden prompt-injection in tool text, and leaked credentials in configs. This bundle exposes two tools to Claude Desktop: scan (read-only verify) and pin (update the lockfile after review). Scanning runs locally; credentials for remote servers stay in your environment, never in the lockfile.",
+  "author": { "name": "JEStats", "url": "https://github.com/jestatsio" },
+  "repository": { "type": "git", "url": "https://github.com/jestatsio/toolprint.git" },
+  "homepage": "https://jestatsio.github.io/toolprint/",
+  "support": "https://github.com/jestatsio/toolprint/issues",
+  "license": "Apache-2.0",
+  "icon": "assets/mascot.png",
+  "keywords": ["mcp", "security", "scanner", "lockfile", "supply-chain"],
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": { "node": ">=20.0.0" }
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "dist/cli.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/cli.js", "serve"],
+      "env": {
+        "TOOLPRINT_WORKDIR": "${user_config.project_dir}"
+      }
+    }
+  },
+  "user_config": {
+    "project_dir": {
+      "type": "directory",
+      "title": "Default project directory",
+      "description": "Where relative paths and toolprint.lock discovery start when a scan does not name a directory. Leave blank to pass a directory per scan.",
+      "default": "",
+      "required": false
+    }
+  },
+  "tools": [
+    {
+      "name": "scan",
+      "description": "Connect to MCP servers (or read skill bundles), compare every capability against toolprint.lock, and report tool-poisoning, secret-leak, and rug-pull findings. Read-only."
+    },
+    {
+      "name": "pin",
+      "description": "Scan, then write the current capability definitions into toolprint.lock as the trusted baseline. Only after review; commit the lockfile afterwards."
+    }
+  ]
+}

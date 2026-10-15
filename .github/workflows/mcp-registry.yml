@@ -1,0 +1,44 @@
+name: Publish to MCP Registry
+
+# Publishes server.json to registry.modelcontextprotocol.io after the npm
+# release in release.yml succeeds (the Registry validates that the npm
+# package exists and carries the matching `mcpName`). Auth is GitHub OIDC —
+# no token to store. Manual dispatch re-publishes the current server.json.
+on:
+  workflow_run:
+    workflows: ["Publish to npm"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # OIDC token for MCP Registry authentication
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Wait for the npm package to be visible
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          for attempt in $(seq 1 20); do
+            if [ "$(npm view "toolprint@${VERSION}" mcpName 2>/dev/null)" = "io.github.jestatsio/toolprint" ]; then
+              echo "toolprint@${VERSION} with mcpName is on npm"
+              exit 0
+            fi
+            echo "attempt ${attempt}: toolprint@${VERSION} not visible yet; waiting 30s"
+            sleep 30
+          done
+          echo "toolprint@${VERSION} never appeared on npm with the expected mcpName" >&2
+          exit 1
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+      - name: Authenticate to MCP Registry
+        run: ./mcp-publisher login github-oidc
+      - name: Publish server to MCP Registry
+        run: ./mcp-publisher publish

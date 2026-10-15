@@ -6,6 +6,48 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-15
+
+The theme is **meet agents where they live**: the same engine, now as a plugin your agent can
+call, with a proper docs site and the JEStats branding family treatment.
+
+### Added
+
+- **MCP server mode (`toolprint serve`).** toolprint now runs as a local MCP server over
+  stdio with two tools: `scan` (read-only verify) and `pin` (write the lockfile after
+  review). Both return the stable JSON report as structured content plus the gate decision
+  (`failing`, `exitCode`) the CLI encodes in its exit code, so an agent can branch on it
+  without re-deriving severity thresholds. Credentials keep coming from the environment, so
+  no secret ever travels as a tool argument. The CLI and server share one scan core
+  (`executeScan`), so they can never disagree about a verdict — and a dogfood test asserts
+  toolprint passes its own scan.
+- **Claude Code, Codex, and Claude Desktop plugins.** In-repository marketplaces
+  (`.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`), a toolprint
+  skill, `scan`/`pin` commands that enforce review-before-pin, and release packages built by
+  `npm run package:plugins` — including a bundled `.mcpb` for Claude Desktop. The MCP
+  launcher is pinned to the exact npm version. See [Distribution](docs/distribution.md).
+- **MCP Registry listing.** `server.json` (`io.github.jestatsio/toolprint`) plus `mcpName`
+  in `package.json`, published automatically after each npm release by a GitHub OIDC
+  workflow.
+- **Documentation site.** MkDocs Material at
+  [jestatsio.github.io/toolprint](https://jestatsio.github.io/toolprint/) with a branded
+  install home; the existing guides are wired into the nav and built with `--strict` in CI.
+- **Branding.** An original fingerprint-guardian mascot, a standalone seal icon, and
+  Claude/Codex install buttons in the JEStats plugin family style ([docs/branding.md](docs/branding.md)).
+
+### Changed
+
+- **Dependencies refreshed to zero audit findings** (PR #26): MCP SDK 1.29.0 → 1.32.1
+  (fixes GHSA-6qxp-vccf-f47h), and zod, vitest, prettier, tsx, and @types/node updated
+  within range. CI now runs Node 20/22/24, and Dependabot covers npm and GitHub Actions
+  weekly.
+- **`package.json` homepage** now points at the documentation site, and the author reads
+  JEStats.
+
+### Fixed
+
+- Prettier drift in `docs/json-schema.md` that left `format:check` red on `main`.
+
 ## [0.3.1] - 2026-08-22
 
 ### Fixed

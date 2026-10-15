@@ -1,0 +1,20 @@
+{
+  "name": "toolprint",
+  "interface": {
+    "displayName": "toolprint by JEStats"
+  },
+  "plugins": [
+    {
+      "name": "toolprint",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Security"
+    }
+  ]
+}

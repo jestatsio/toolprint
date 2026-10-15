@@ -77,8 +77,15 @@ Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`, 
 
    This step is easy to forget and silently breaks every pinned workflow. It is not optional.
 
-6. Publish a GitHub release for the tag. `.github/workflows/release.yml` publishes to npm via OIDC
-   trusted publishing; `prepublishOnly` re-runs typecheck, tests, and build first.
+6. Build the plugin packages and publish a GitHub release for the tag with them attached:
+   `npm run package:plugins`, then attach the four files in `release-dist/`.
+   `.github/workflows/release.yml` publishes to npm via OIDC trusted publishing;
+   `prepublishOnly` re-runs typecheck, tests, and build first. The MCP Registry entry
+   publishes itself afterwards (`.github/workflows/mcp-registry.yml`).
+7. Update `docs/distribution.json` with the published assets' checksums. The packaging test
+   (`test/packaging.test.ts`) already forced every plugin manifest, `server.json`, and the
+   pinned `.mcp.json` launcher to the new version before you tagged — if it is red, fix the
+   drift rather than the test. See [Distribution](docs/distribution.md) for per-channel notes.
 
 ### GitHub Marketplace
 

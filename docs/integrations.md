@@ -65,7 +65,7 @@ npx toolprint pin  npx:@skillroute/mcp-server
 
 Any client whose config toolprint can read is covered — see
 [the client list](targets.md#clients-toolprint-knows). Adding one is a data change in
-`src/connect/clients.ts`; see [CONTRIBUTING.md](../CONTRIBUTING.md).
+`src/connect/clients.ts`; see [CONTRIBUTING.md](https://github.com/jestatsio/toolprint/blob/main/CONTRIBUTING.md).
 
 ## GitHub
 
