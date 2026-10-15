@@ -1,7 +1,7 @@
 ---
 description: Scan this project's MCP servers and skills with toolprint (read-only)
 argument-hint: "[target] — config path, URL, npx:<package>, or blank for auto-discovery"
-allowed-tools: mcp__toolprint__scan, Bash(npx toolprint@0.4.0 scan:*)
+allowed-tools: mcp__plugin_toolprint_toolprint__scan, mcp__toolprint__scan, Bash(npx toolprint@0.4.0 scan:*)
 ---
 
 Run a toolprint **scan** (read-only — it never writes the lockfile).
