@@ -6,6 +6,34 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-15
+
+Directory-listing fixes from the 0.4.0 submissions. No scanner behavior changes.
+
+### Added
+
+- **Privacy policy and terms pages** ([privacy](docs/privacy.md), [terms](docs/terms.md)),
+  linked from the Codex/OpenAI manifests alongside a support URL. The OpenAI directory
+  requires all three and fetches them.
+- **`toolprint-<version>-codex-directory.zip`** release asset: the desktop-only local-MCP
+  package OpenAI's directory expects — server and dependencies bundled, declared in a root
+  `mcp.json` with `${PLUGIN_ROOT}` paths.
+
+### Changed
+
+- **Codex subtitle shortened** to fit the directory's 30-character cap ("Verify the tools
+  agents trust").
+- TypeScript 7, Vitest 5, Node types 26, and `actions/checkout`/`setup-node` v7 are now
+  the development baseline (Dependabot [#27](https://github.com/jestatsio/toolprint/pull/27)–[#31](https://github.com/jestatsio/toolprint/pull/31));
+  `tsconfig.json` declares `"types": ["node"]` explicitly, as TS 7 no longer auto-includes
+  `@types/*`.
+
+### Fixed
+
+- Detection-test fixtures no longer commit credential-shaped literals (the Claude directory
+  validator's `SECRET_IN_SCRIPT` finding): fake test credentials are assembled from
+  fragments at runtime, and plugin commands allow-list the plugin-scoped MCP tool names.
+
 ## [0.4.0] - 2026-10-15
 
 The theme is **meet agents where they live**: the same engine, now as a plugin your agent can

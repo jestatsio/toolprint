@@ -93,6 +93,39 @@ describe("plugin packaging manifests", () => {
     expect(width).toBeGreaterThanOrEqual(512);
   });
 
+  it("OpenAI directory metadata rules hold (subtitle length, support/privacy/terms)", () => {
+    const ifaces = [
+      (readJson(".codex-plugin/plugin.json").interface ?? {}) as Record<string, unknown>,
+      ((
+        (readJson("plugin.json").extensions as Record<string, unknown>)["com.openai"] as Record<
+          string,
+          unknown
+        >
+      ).interface ?? {}) as Record<string, unknown>,
+    ];
+    for (const iface of ifaces) {
+      expect((iface.shortDescription as string).length).toBeLessThanOrEqual(30);
+      expect(iface.supportURL).toBe("https://github.com/jestatsio/toolprint/issues");
+      expect(iface.privacyPolicyURL).toBe("https://jestatsio.github.io/toolprint/privacy/");
+      expect(iface.termsOfServiceURL).toBe("https://jestatsio.github.io/toolprint/terms/");
+    }
+    // The directory fetches these pages; they must exist in the docs source.
+    expect(existsSync(join(ROOT, "docs/privacy.md"))).toBe(true);
+    expect(existsSync(join(ROOT, "docs/terms.md"))).toBe(true);
+  });
+
+  it("the bundled local-MCP config (mcp.json) launches the packaged server", () => {
+    const mcp = readJson("mcp.json");
+    const servers = mcp.mcpServers as Record<
+      string,
+      { type: string; command: string; args: string[]; cwd?: string }
+    >;
+    expect(servers.toolprint?.type).toBe("stdio");
+    expect(servers.toolprint?.command).toBe("node");
+    expect(servers.toolprint?.args).toEqual(["${PLUGIN_ROOT}/dist/cli.js", "serve"]);
+    expect(servers.toolprint?.cwd).toBe("${PLUGIN_ROOT}");
+  });
+
   it("the Codex marketplace entry is complete", () => {
     const marketplace = readJson(".agents/plugins/marketplace.json");
     const plugins = marketplace.plugins as {

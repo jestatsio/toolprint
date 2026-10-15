@@ -16,7 +16,7 @@ A free, open-source scanner and MCP plugin for Claude Desktop, Claude Code, and 
 [![Node 20+](https://img.shields.io/node/v/toolprint?color=339933&style=flat-square&labelColor=050B18)](https://nodejs.org)
 [![Apache-2.0 license](https://img.shields.io/badge/License-Apache--2.0-2DD4BF?style=flat-square&labelColor=050B18)](LICENSE)
 
-[![Download for Claude Desktop](assets/install-claude.svg)](https://github.com/jestatsio/toolprint/releases/download/v0.4.0/toolprint-0.4.0.mcpb)
+[![Download for Claude Desktop](assets/install-claude.svg)](https://github.com/jestatsio/toolprint/releases/download/v0.4.1/toolprint-0.4.1.mcpb)
 [![Install in Codex](assets/install-codex.svg)](https://jestatsio.github.io/toolprint/install/#codex)
 [![Install in Claude Code](assets/install-code.svg)](https://jestatsio.github.io/toolprint/install/#claude-code)
 
@@ -97,14 +97,14 @@ the lock after review) — return the same pass/fail decision as the CLI's exit 
 
 | Assistant          | Quick install                                                                                                                                             |
 | :----------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Claude Desktop** | Download [`toolprint-0.4.0.mcpb`](https://github.com/jestatsio/toolprint/releases/download/v0.4.0/toolprint-0.4.0.mcpb), open it, and confirm **Install** |
+| **Claude Desktop** | Download [`toolprint-0.4.1.mcpb`](https://github.com/jestatsio/toolprint/releases/download/v0.4.1/toolprint-0.4.1.mcpb), open it, and confirm **Install** |
 | **Claude Code**    | Paste `/plugin install toolprint --marketplace jestatsio/toolprint` in a current session, then confirm installation                                       |
 | **Local Codex**    | `codex plugin marketplace add jestatsio/toolprint`, then `codex plugin add toolprint@toolprint`                                                           |
 
 Then ask your agent to scan this project's MCP servers and tell you what changed since the
 lockfile. The plugin also brings a toolprint skill and `scan`/`pin` commands that enforce the
 review-before-pin workflow. Any other MCP host can use the generic stdio config
-(`npx -y toolprint@0.4.0 serve`). Full setup, updates, and checksums are in the
+(`npx -y toolprint@0.4.1 serve`). Full setup, updates, and checksums are in the
 [installation guide](https://jestatsio.github.io/toolprint/install/) and
 [Distribution](docs/distribution.md). These are JEStats community distributions; official
 directory status is tracked openly in the distribution notes.

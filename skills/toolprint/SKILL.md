@@ -14,7 +14,7 @@ silently steering the agent.
 ## Tools
 
 Prefer the MCP tools from this plugin's `toolprint` server when available;
-otherwise run the CLI with `npx toolprint@0.4.0 <command>` (same engine, same
+otherwise run the CLI with `npx toolprint@0.4.1 <command>` (same engine, same
 exit codes).
 
 - `scan` — read-only verify. Compares current definitions to `toolprint.lock`

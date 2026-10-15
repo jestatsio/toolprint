@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "toolprint",
   "display_name": "toolprint by JEStats",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Pin and verify the MCP tools your agent trusts. Scan MCP servers and skill bundles for tool poisoning, secret leaks, and silent rug-pulls.",
   "long_description": "toolprint is package-lock.json for MCP trust. It connects to your MCP servers, fingerprints every tool, prompt, resource, and skill definition into a committed toolprint.lock, and then catches silent changes (rug-pulls), hidden prompt-injection in tool text, and leaked credentials in configs. This bundle exposes two tools to Claude Desktop: scan (read-only verify) and pin (update the lockfile after review). Scanning runs locally; credentials for remote servers stay in your environment, never in the lockfile.",
   "author": { "name": "JEStats", "url": "https://github.com/jestatsio" },

@@ -12,7 +12,7 @@ hide: [navigation, toc]
 <p class="lead">Your agent's MCP servers can silently rewrite the tool descriptions it reads. toolprint fingerprints every definition into a committed <code>toolprint.lock</code>, so the next change shows up as a diff in a pull request — and hidden prompt-injection and leaked secrets fail the build.</p>
 
 <div class="install-buttons">
-<a href="https://github.com/jestatsio/toolprint/releases/download/v0.4.0/toolprint-0.4.0.mcpb"><img src="assets/install-claude.svg" alt="Download for Claude Desktop"></a>
+<a href="https://github.com/jestatsio/toolprint/releases/download/v0.4.1/toolprint-0.4.1.mcpb"><img src="assets/install-claude.svg" alt="Download for Claude Desktop"></a>
 <a href="install.md#codex"><img src="assets/install-codex.svg" alt="Set up in Codex"></a>
 <a href="install.md#claude-code"><img src="assets/install-code.svg" alt="Install in Claude Code"></a>
 </div>

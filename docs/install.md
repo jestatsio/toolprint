@@ -5,15 +5,15 @@ toolprint is one engine with five doors. Every route below ends at the same two 
 newer is the only runtime requirement; Claude Desktop supplies its own Node.
 
 <div class="install-buttons">
-<a href="https://github.com/jestatsio/toolprint/releases/download/v0.4.0/toolprint-0.4.0.mcpb"><img src="../assets/install-claude.svg" alt="Download for Claude Desktop"></a>
+<a href="https://github.com/jestatsio/toolprint/releases/download/v0.4.1/toolprint-0.4.1.mcpb"><img src="../assets/install-claude.svg" alt="Download for Claude Desktop"></a>
 <a href="#codex"><img src="../assets/install-codex.svg" alt="Set up in Codex"></a>
 <a href="#claude-code"><img src="../assets/install-code.svg" alt="Install in Claude Code"></a>
 </div>
 
 ## Claude Desktop
 
-1. Download [`toolprint-0.4.0.mcpb`](https://github.com/jestatsio/toolprint/releases/download/v0.4.0/toolprint-0.4.0.mcpb)
-   (checksums are on the [release page](https://github.com/jestatsio/toolprint/releases/tag/v0.4.0)).
+1. Download [`toolprint-0.4.1.mcpb`](https://github.com/jestatsio/toolprint/releases/download/v0.4.1/toolprint-0.4.1.mcpb)
+   (checksums are on the [release page](https://github.com/jestatsio/toolprint/releases/tag/v0.4.1)).
 2. Open the file and confirm **Install**, or drag it into **Settings → Extensions**.
 3. Optionally set **Default project directory** in the extension settings — where relative
    paths and `toolprint.lock` discovery start.
@@ -38,7 +38,7 @@ claude plugin install toolprint@toolprint
 ```
 
 You get the `toolprint` MCP server (`scan`, `pin`), the toolprint skill, and the `/scan` and
-`/pin` commands. The plugin launches the server as `npx -y toolprint@0.4.0 serve`, pinned to
+`/pin` commands. The plugin launches the server as `npx -y toolprint@0.4.1 serve`, pinned to
 an exact npm version.
 
 ## Codex
@@ -50,7 +50,7 @@ codex plugin marketplace add jestatsio/toolprint
 codex plugin add toolprint@toolprint
 ```
 
-Or download [`toolprint-0.4.0-marketplace.zip`](https://github.com/jestatsio/toolprint/releases/download/v0.4.0/toolprint-0.4.0-marketplace.zip),
+Or download [`toolprint-0.4.1-marketplace.zip`](https://github.com/jestatsio/toolprint/releases/download/v0.4.1/toolprint-0.4.1-marketplace.zip),
 unzip it, and run `codex plugin marketplace add ./toolprint-marketplace` against the extracted
 folder. Restart Codex and ask it to scan this project's MCP servers.
 
@@ -64,7 +64,7 @@ config is:
   "mcpServers": {
     "toolprint": {
       "command": "npx",
-      "args": ["-y", "toolprint@0.4.0", "serve"]
+      "args": ["-y", "toolprint@0.4.1", "serve"]
     }
   }
 }

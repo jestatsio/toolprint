@@ -4,6 +4,9 @@
 //                                   node_modules included; Desktop supplies Node)
 //   toolprint-<v>-claude-code.zip  Claude Code plugin (npx-pinned, no build needed)
 //   toolprint-<v>-codex.zip        Codex plugin (npx-pinned, no build needed)
+//   toolprint-<v>-codex-directory.zip
+//                                   OpenAI directory upload: bundled server +
+//                                   deps, root mcp.json (desktop-only local MCP)
 //   toolprint-<v>-marketplace.zip  Codex local marketplace root wrapping the plugin
 //
 // The Claude Code and Codex zips are convenience copies of what the in-repo
@@ -114,6 +117,52 @@ const results = {};
     "README.md",
   ]);
   results.codex = zipDir(join(stageRoot, "codex"), `toolprint-${version}-codex.zip`);
+}
+
+// --- Codex directory (desktop-only / local MCP) zip -------------------------
+// OpenAI's public directory does not launch packages from npm: a local MCP
+// plugin must bundle its server and dependencies and declare them in a root
+// mcp.json with ${PLUGIN_ROOT} paths. Same plugin, self-contained packaging.
+{
+  const stage = join(stageRoot, "codex-directory/toolprint");
+  mkdirSync(stage, { recursive: true });
+  copyInto(stage, [
+    ".codex-plugin/plugin.json",
+    "plugin.json",
+    "mcp.json",
+    "dist",
+    "skills",
+    "assets/icon.svg",
+    "assets/mascot.png",
+    "LICENSE",
+    "README.md",
+  ]);
+  // The directory build resolves its MCP config from the bundled mcp.json,
+  // not the npx-pinned .mcp.json the community packages use.
+  const codexManifestPath = join(stage, ".codex-plugin/plugin.json");
+  const codexManifest = JSON.parse(readFileSync(codexManifestPath, "utf8"));
+  codexManifest.mcpServers = "./mcp.json";
+  writeFileSync(codexManifestPath, JSON.stringify(codexManifest, null, 2) + "\n");
+  writeFileSync(
+    join(stage, "package.json"),
+    JSON.stringify(
+      {
+        name: pkg.name,
+        version,
+        private: true,
+        type: pkg.type,
+        dependencies: pkg.dependencies,
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  run("npm install --omit=dev --ignore-scripts --no-audit --no-fund", stage);
+  rmSync(join(stage, "package-lock.json"), { force: true });
+  results.codexDirectory = zipDir(
+    join(stageRoot, "codex-directory"),
+    `toolprint-${version}-codex-directory.zip`,
+  );
 }
 
 // --- Codex local marketplace zip --------------------------------------------
