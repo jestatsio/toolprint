@@ -35,7 +35,12 @@ remote MCP servers in this flow. A local (stdio) MCP plugin follows the
 requires the submitting organization to be allowlisted first: send the organization ID
 (from OpenAI Platform organization settings) to an OpenAI representative and wait for
 confirmation. The bundled `toolprint-<version>-codex-directory.zip` release asset is built
-for that path (root `mcp.json`, server and dependencies inside the package).
+for that path (root `mcp.json`, server and dependencies inside the package). As of the 0.4.1
+upload the draft's only remaining finding is exactly that gate, quoted by the portal:
+"Command MCP Server detected: We recommend using MCP servers with an URL. Please contact
+your OpenAI representative to submit plugins with command line MCPs." The MCP itself is
+registered correctly (toolprint · node · stdio · Desktop only), so once the organization is
+allowlisted the draft can be submitted as-is.
 
 ## Official directories (manual portals)
 
