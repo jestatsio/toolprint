@@ -71,6 +71,20 @@
   font-size: 0.8rem;
   margin: 0.4rem 0.3rem 0.4rem 0;
 }
+.md-typeset .md-button--primary {
+  background-color: #0d9488;
+  border-color: #0d9488;
+  color: #faf9f5;
+}
+[data-md-color-scheme="slate"] .md-typeset .md-button {
+  color: #faf9f5;
+  border-color: #2dd4bf;
+}
+[data-md-color-scheme="slate"] .md-typeset .md-button--primary {
+  background-color: #0d9488;
+  border-color: #0d9488;
+  color: #faf9f5;
+}
 .install-buttons {
   display: flex;
   flex-wrap: wrap;
