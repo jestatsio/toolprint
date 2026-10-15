@@ -98,12 +98,8 @@ filtering findings. Accepted drift never sets it.
 ```json
 {
   "path": "baseline.json",
-  "new": [
-    /* findings */
-  ],
-  "resolved": [
-    /* findings */
-  ]
+  "new": [/* findings */],
+  "resolved": [/* findings */]
 }
 ```
 
