@@ -1,27 +1,35 @@
 <p align="center">
+  <img src="assets/mascot.png" alt="The toolprint fingerprint guardian inspects a tool identity card with a magnifying glass, padlock in hand." width="192">
+</p>
+
+<div align="center">
+
+# toolprint
+
+**Pin what you trust. Catch what changes.**
+
+A free, open-source scanner and MCP plugin for Claude Desktop, Claude Code, and Codex — plus a CLI and a GitHub Action.
+
+[![CI](https://github.com/jestatsio/toolprint/actions/workflows/ci.yml/badge.svg)](https://github.com/jestatsio/toolprint/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/toolprint?label=npm&color=CB3837&style=flat-square&labelColor=050B18)](https://www.npmjs.com/package/toolprint)
+[![npm downloads](https://img.shields.io/npm/dm/toolprint?color=CB3837&label=downloads&style=flat-square&labelColor=050B18)](https://www.npmjs.com/package/toolprint)
+[![Node 20+](https://img.shields.io/node/v/toolprint?color=339933&style=flat-square&labelColor=050B18)](https://nodejs.org)
+[![Apache-2.0 license](https://img.shields.io/badge/License-Apache--2.0-2DD4BF?style=flat-square&labelColor=050B18)](LICENSE)
+
+[![Download for Claude Desktop](assets/install-claude.svg)](https://github.com/jestatsio/toolprint/releases/download/v0.4.0/toolprint-0.4.0.mcpb)
+[![Install in Codex](assets/install-codex.svg)](https://jestatsio.github.io/toolprint/install/#codex)
+[![Install in Claude Code](assets/install-code.svg)](https://jestatsio.github.io/toolprint/install/#claude-code)
+
+[Choose your assistant](https://jestatsio.github.io/toolprint/install/) · [Documentation](https://jestatsio.github.io/toolprint/) · No account, runs locally
+
+**15 agent clients · 4 checks · 11 injection signals · 18 secret formats · MCP servers _and_ skill bundles · zero runtime config**
+
+[Quick start](#quick-start) · [In your agent](#in-your-agent-claude-and-codex-plugins) · [What it catches](#what-it-catches) · [Every client](#your-whole-machine) · [Skills](#skill-bundles) · [CI](#in-ci) · [How it works](#how-it-works) · [Docs](#docs)
+
+</div>
+
+<p align="center">
   <img src="docs/assets/banner.svg" alt="toolprint — package-lock.json for MCP trust" width="100%">
-</p>
-
-<p align="center">
-  <a href="https://github.com/jestatsio/toolprint/actions/workflows/ci.yml"><img src="https://github.com/jestatsio/toolprint/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://www.npmjs.com/package/toolprint"><img src="https://img.shields.io/npm/v/toolprint?label=npm&color=CB3837" alt="npm"></a>
-  <a href="https://www.npmjs.com/package/toolprint"><img src="https://img.shields.io/npm/dm/toolprint?color=CB3837&label=downloads" alt="npm downloads"></a>
-  <a href="https://nodejs.org"><img src="https://img.shields.io/node/v/toolprint?color=339933" alt="Node 20+"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache-2.0"></a>
-</p>
-
-<p align="center">
-  <b>15 agent clients · 4 checks · 11 injection signals · 18 secret formats · MCP servers <i>and</i> skill bundles · zero runtime config</b>
-</p>
-
-<p align="center">
-  <a href="#quick-start">Quick start</a> ·
-  <a href="#what-it-catches">What it catches</a> ·
-  <a href="#your-whole-machine">Every client</a> ·
-  <a href="#skill-bundles">Skills</a> ·
-  <a href="#in-ci">CI</a> ·
-  <a href="#how-it-works">How it works</a> ·
-  <a href="#docs">Docs</a>
 </p>
 
 > **Built for the [Model Context Protocol](https://modelcontextprotocol.io).** toolprint speaks MCP
@@ -81,6 +89,26 @@ npx toolprint scan ~/Library/Application\ Support/Claude/claude_desktop_config.j
 Run it with no target inside a project and toolprint auto-discovers `.mcp.json`, `mcp.json`,
 `.vscode/mcp.json`, or `.cursor/mcp.json`.
 
+## In your agent: Claude and Codex plugins
+
+New in 0.4.0: `toolprint serve` runs the same engine as a local MCP server, so your agent can
+verify the very tools it is about to trust. Two tools — `scan` (read-only) and `pin` (update
+the lock after review) — return the same pass/fail decision as the CLI's exit codes.
+
+| Assistant          | Quick install                                                                                                                                             |
+| :----------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Claude Desktop** | Download [`toolprint-0.4.0.mcpb`](https://github.com/jestatsio/toolprint/releases/download/v0.4.0/toolprint-0.4.0.mcpb), open it, and confirm **Install** |
+| **Claude Code**    | Paste `/plugin install toolprint --marketplace jestatsio/toolprint` in a current session, then confirm installation                                       |
+| **Local Codex**    | `codex plugin marketplace add jestatsio/toolprint`, then `codex plugin add toolprint@toolprint`                                                           |
+
+Then ask your agent to scan this project's MCP servers and tell you what changed since the
+lockfile. The plugin also brings a toolprint skill and `scan`/`pin` commands that enforce the
+review-before-pin workflow. Any other MCP host can use the generic stdio config
+(`npx -y toolprint@0.4.0 serve`). Full setup, updates, and checksums are in the
+[installation guide](https://jestatsio.github.io/toolprint/install/) and
+[Distribution](docs/distribution.md). These are JEStats community distributions; official
+directory status is tracked openly in the distribution notes.
+
 ## What it catches
 
 | Check              | Catches                                                                                                                                                                                                                                                                           |
@@ -111,7 +139,7 @@ npx toolprint scan --client cursor --client zed    # or just these
 ```
 
 toolprint knows **15 agent clients** across macOS, Linux, and Windows, derived from
-[SkillRoute](https://github.com/erichare/skillroute)'s harness manifests — see
+[SkillRoute](https://github.com/jestatsio/skillroute)'s harness manifests — see
 [Integrations](docs/integrations.md). 11 of them store MCP servers as JSON and are scanned; the other
 four (Codex, Goose, Hermes, DeepSeek) use TOML or YAML and are reported as **explicitly skipped**,
 never silently counted as covered.
@@ -384,6 +412,9 @@ toolprint pin  [target]      Pin current definitions (alias for scan --update)
 | [Suppressions](docs/suppressions.md)       | Handling false positives without lowering the gate                    |
 | [Integrations](docs/integrations.md)       | How toolprint and SkillRoute fit together                             |
 | [JSON Schema](docs/json-schema.md)         | The `--json` output contract                                          |
+| [Install](docs/install.md)                 | Claude Desktop, Claude Code, Codex, CLI, and Action setup             |
+| [Distribution](docs/distribution.md)       | Packages, checksums, marketplaces, and submission status              |
+| [Branding](docs/branding.md)               | The fingerprint guardian, palette, and assets                         |
 | [Changelog](CHANGELOG.md)                  | Release history                                                       |
 
 ## Continuous monitoring
@@ -395,8 +426,8 @@ team dashboard instead of one-off CLI runs. That's what we're building next.
 
 ## Status
 
-Early and moving fast. The CLI works end-to-end; the JSON schema and exit codes are a stable
-contract. Found a real issue or a false positive?
+Early and moving fast. The CLI, MCP server, plugins, and GitHub Action all run the same engine
+end-to-end; the JSON schema and exit codes are a stable contract. Found a real issue or a false positive?
 **[Open an issue](https://github.com/jestatsio/toolprint/issues/new?template=false-positive.yml)** —
 precision is the whole game, so false-positive reports are especially valuable. Security
 vulnerabilities go to [SECURITY.md](SECURITY.md).
@@ -419,6 +450,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full dev setup and the release pr
 
 ---
 
-<p align="center">
-  <sub>Apache-2.0 © <a href="https://github.com/jestatsio">jestatsio</a> — pairs with <a href="https://github.com/erichare/skillroute">SkillRoute</a>, for people who don't take their agent's tools on faith.</sub>
-</p>
+<div align="center">
+
+**JEStats · Pin what you trust.**
+
+[Apache-2.0 licensed](LICENSE) · Free and open source · Pairs with [SkillRoute](https://github.com/jestatsio/skillroute), for people who don't take their agent's tools on faith
+
+</div>

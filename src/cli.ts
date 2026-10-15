@@ -1,26 +1,14 @@
 #!/usr/bin/env node
 import { Command, Option } from "commander";
 import { SEVERITIES, type Severity } from "./checks/types.js";
-import { applyAuthHeaders, collectAuthHeaders } from "./connect/auth.js";
 import { AGENT_CLIENT_IDS } from "./connect/clients.js";
-import { discoverClientTargets, resolveSkillTargets, resolveTargets } from "./connect/target.js";
 import { getErrorMessage, OperationalError } from "./errors.js";
-import {
-  displayLockPath,
-  lockedContentEquals,
-  mergeLockfile,
-  readLockfile,
-  resolveLockfilePath,
-  writeLockfile,
-} from "./lockfile/io.js";
-import { exitCodeFor, isFailing } from "./outcome.js";
-import { applySuppressionsToScan, readSuppressions, resolveIgnorePath } from "./suppressions.js";
-import { findingId } from "./report/fingerprint.js";
-import { type BaselineDiff, diffAgainstBaseline, loadBaseline } from "./report/baseline.js";
+import { executeScan } from "./executeScan.js";
+import { exitCodeFor } from "./outcome.js";
 import { renderHuman } from "./report/human.js";
 import { buildJsonReport, renderJson } from "./report/json.js";
 import { buildSarifReport, renderSarif, toArtifactUri } from "./report/sarif.js";
-import { scanTargets } from "./scan.js";
+import { runStdioServer } from "./server.js";
 import { TOOLPRINT_VERSION } from "./version.js";
 
 interface ScanCliOptions {
@@ -71,122 +59,50 @@ async function runScan(target: string | undefined, options: ScanCliOptions): Pro
     );
   }
 
-  const lockPath = resolveLockfilePath(cwd, options.lockfile);
-  const lockfile = readLockfile(lockPath);
-  const authHeaders = collectAuthHeaders({ header: options.header, bearer: options.bearer });
-  const clientIds = options.client ?? [];
-  const acrossClients = Boolean(options.allClients) || clientIds.length > 0;
-  const skillDirs =
-    options.skills === undefined ? [] : typeof options.skills === "string" ? [options.skills] : [];
-  const scanSkills = options.skills !== undefined;
-
-  if (scanSkills && (acrossClients || target || options.config)) {
-    throw new OperationalError(
-      "--skills scans skill bundles on disk; run it on its own, not with a server target.",
-    );
-  }
-  if (acrossClients && (target || options.config)) {
-    throw new OperationalError(
-      "--all-clients/--client discovers configs itself; drop the explicit target or --config.",
-    );
-  }
-  for (const id of clientIds) {
-    if (!AGENT_CLIENT_IDS.includes(id)) {
-      throw new OperationalError(
-        `Unknown --client "${id}". Known clients: ${AGENT_CLIENT_IDS.join(", ")}.`,
-      );
-    }
-  }
-
-  let discoveredTargets;
-  if (scanSkills) {
-    discoveredTargets = resolveSkillTargets(skillDirs, cwd);
-  } else if (acrossClients) {
-    const discovery = discoverClientTargets({
-      cwd,
-      ...(clientIds.length > 0 ? { only: clientIds } : {}),
-      useSkillroute: Boolean(options.useSkillroute),
-    });
-    // Anything found but not scanned is announced on stderr, so `--json` and
-    // `--sarif` stdout stay clean while the gap is never silently hidden.
-    for (const note of discovery.notes) {
-      process.stderr.write(`toolprint: skipped ${note.client} (${note.path}): ${note.reason}\n`);
-    }
-    if (discovery.targets.length === 0) {
-      throw new OperationalError(
-        `No MCP servers found across ${discovery.scanned} agent client config(s). ` +
-          "Pass a target explicitly, or check `--client` spelling.",
-      );
-    }
-    discoveredTargets = discovery.targets;
-  } else {
-    discoveredTargets = resolveTargets(target, { config: options.config }, cwd);
-  }
-  const targets = applyAuthHeaders(discoveredTargets, authHeaders);
-
-  const probeTools = options.probeTool ?? [];
-  const probe =
-    options.probe || probeTools.length > 0
-      ? { includeReadOnly: Boolean(options.probe), tools: probeTools }
-      : undefined;
-
-  const rawScan = await scanTargets(targets, lockfile, {
+  const result = await executeScan({
+    cwd,
+    target,
+    config: options.config,
+    allClients: options.allClients,
+    clients: options.client ?? [],
+    useSkillroute: options.useSkillroute,
+    skills: options.skills,
+    update: options.update,
+    failOn,
+    probe: options.probe,
+    probeTools: options.probeTool ?? [],
+    baselinePath: options.baseline,
+    failOnNew: options.failOnNew,
+    ignoreFile: options.ignoreFile,
+    lockfile: options.lockfile,
     timeoutMs,
-    probe,
+    header: options.header ?? [],
+    bearer: options.bearer,
     warn: (message) => process.stderr.write(`${message}\n`),
   });
 
-  // Suppressions are applied before anything reads the findings, so the report,
-  // the baseline diff, and the exit code all agree on what is enforced.
-  const suppressions = readSuppressions(resolveIgnorePath(cwd, options.ignoreFile));
-  const applied = applySuppressionsToScan(rawScan, suppressions);
-  const scan = applied.scan;
-  for (const entry of applied.expired) {
+  // Anything found but not scanned is announced on stderr, so `--json` and
+  // `--sarif` stdout stay clean while the gap is never silently hidden.
+  for (const note of result.notes) {
+    process.stderr.write(`toolprint: skipped ${note.client} (${note.path}): ${note.reason}\n`);
+  }
+  for (const entry of result.expiredSuppressions) {
     process.stderr.write(
       `toolprint: suppression ${entry.id} expired on ${entry.expires} — it no longer applies (${entry.reason})\n`,
     );
   }
-  for (const entry of applied.unused) {
+  for (const entry of result.unusedSuppressions) {
     process.stderr.write(
-      `toolprint: suppression ${entry.id} matched nothing — remove it from ${suppressions.path}\n`,
+      `toolprint: suppression ${entry.id} matched nothing — remove it from ${result.suppressionsPath}\n`,
     );
   }
 
-  const baseline: BaselineDiff | undefined = options.baseline
-    ? diffAgainstBaseline(scan.findings, loadBaseline(options.baseline))
-    : undefined;
-
-  if (options.failOnNew && !baseline) {
-    throw new OperationalError("--fail-on-new requires --baseline <path> to compare against.");
-  }
-
-  const update = Boolean(options.update);
-  let wrote = false;
-  if (update) {
-    const scannedServers = scan.results.flatMap((result) => (result.server ? [result.server] : []));
-    const next = mergeLockfile(lockfile, scannedServers, new Date().toISOString());
-    // Skip a no-op write so re-pinning never churns the committed lockfile's timestamp.
-    if (lockfile === null || !lockedContentEquals(lockfile, next)) {
-      writeLockfile(lockPath, next);
-      wrote = true;
-    }
-  }
-
-  const newFindingIds =
-    options.failOnNew && baseline
-      ? new Set(baseline.newFindings.map((finding) => findingId(finding)))
-      : undefined;
-  const failing = isFailing(scan.findings, {
-    failOn,
-    update,
-    ...(newFindingIds ? { newFindingIds } : {}),
-  });
-  const lockDisplay = displayLockPath(cwd, lockPath);
+  const { scan, baseline, failing, lockDisplay, update, wrote } = result;
 
   if (options.sarif) {
     // Findings have no source line; anchor them to the scanned config (or the
     // lockfile) so GitHub code scanning can display them.
-    const anchorUri = toArtifactUri(cwd, options.config ?? lockPath);
+    const anchorUri = toArtifactUri(cwd, options.config ?? result.lockPath);
     process.stdout.write(renderSarif(buildSarifReport(scan, { anchorUri })));
   } else if (options.json) {
     const updateSummary = update ? { lockfile: lockDisplay, wrote, failed: failing } : undefined;
@@ -211,7 +127,6 @@ async function runScan(target: string | undefined, options: ScanCliOptions): Pro
 
   process.exitCode = exitCodeFor(failing, scan.hadOperationalError);
 }
-
 function withScanOptions(command: Command): Command {
   return (
     command
@@ -303,6 +218,15 @@ withScanOptions(
 ).action((target: string | undefined, options: ScanCliOptions) =>
   runScan(target, { ...options, update: true }),
 );
+
+program
+  .command("serve")
+  .description(
+    "Run toolprint as a local MCP server over stdio (tools: scan, pin) for Claude Code, Codex, and Claude Desktop",
+  )
+  .action(async () => {
+    await runStdioServer();
+  });
 
 async function main(): Promise<void> {
   try {

@@ -1,0 +1,20 @@
+{
+  "name": "toolprint",
+  "displayName": "toolprint by JEStats",
+  "version": "0.4.0",
+  "description": "package-lock.json for MCP trust. Scan MCP servers and skill bundles for tool poisoning, secret leaks, and silent rug-pulls, and pin what you trust into a committed, reviewable toolprint.lock.",
+  "author": { "name": "JEStats", "url": "https://github.com/jestatsio" },
+  "homepage": "https://jestatsio.github.io/toolprint/",
+  "repository": "https://github.com/jestatsio/toolprint",
+  "license": "Apache-2.0",
+  "keywords": [
+    "mcp",
+    "security",
+    "scanner",
+    "lockfile",
+    "rug-pull",
+    "supply-chain",
+    "agent-skills",
+    "prompt-injection"
+  ]
+}

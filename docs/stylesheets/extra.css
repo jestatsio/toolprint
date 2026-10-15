@@ -1,0 +1,121 @@
+:root {
+  --md-text-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --md-code-font: "SFMono-Regular", Consolas, monospace;
+  --md-primary-fg-color: #050b18;
+  --md-accent-fg-color: #0d9488;
+  --surface: #f2f7f7;
+  --line: #d3e3e0;
+  --muted: #48586a;
+}
+[data-md-color-scheme="slate"] {
+  --md-hue: 222;
+  --md-primary-fg-color: #050b18;
+  --md-accent-fg-color: #2dd4bf;
+  --md-typeset-a-color: #2dd4bf;
+  --surface: #0a1426;
+  --line: #1e293b;
+  --muted: #8fa2b7;
+}
+.md-header__topic:first-child {
+  font-weight: 750;
+  letter-spacing: -0.025em;
+}
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3 {
+  letter-spacing: -0.035em;
+  font-weight: 650;
+}
+.md-typeset h1 {
+  color: var(--md-default-fg-color);
+}
+.plugin-hero {
+  padding: 1.4rem 0 2rem;
+  border-bottom: 1px solid var(--line);
+}
+.plugin-mark {
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+  float: right;
+  margin: 0.3rem 0 1rem 2rem;
+}
+.md-typeset .eyebrow {
+  font-size: 0.65rem;
+  letter-spacing: 0.13em;
+  font-weight: 750;
+  color: var(--muted);
+}
+.md-typeset .plugin-hero h1 {
+  font-size: clamp(2.2rem, 4.8vw, 3.7rem);
+  line-height: 1.07;
+  letter-spacing: -0.055em;
+  font-weight: 760;
+  max-width: 19ch;
+  margin: 0.7rem 0 1.2rem;
+}
+.md-typeset .lead {
+  font-size: 1.04rem;
+  line-height: 1.7;
+  color: var(--muted);
+  max-width: 40rem;
+}
+.md-typeset .meta {
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 1.8rem;
+}
+.md-typeset .md-button {
+  border-radius: 0.35rem;
+  padding: 0.55em 1.15em;
+  font-size: 0.8rem;
+  margin: 0.4rem 0.3rem 0.4rem 0;
+}
+.install-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 1.4rem 0 0.4rem;
+}
+.install-buttons img {
+  height: 52px;
+  width: auto;
+}
+.plugin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0 2.4rem;
+}
+.plugin-card {
+  padding: 1.2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--surface);
+}
+.md-typeset .plugin-card h3 {
+  margin: 0 0 0.55rem;
+  font-size: 0.95rem;
+}
+.md-typeset .plugin-card p {
+  color: var(--muted);
+  font-size: 0.77rem;
+  margin-bottom: 0;
+}
+.md-typeset pre > code {
+  border-radius: 0.4rem;
+}
+@media (max-width: 600px) {
+  .plugin-grid {
+    grid-template-columns: 1fr;
+  }
+  .plugin-mark {
+    float: none;
+    margin: 0 0 1rem;
+    width: 96px;
+    height: 96px;
+  }
+  .plugin-hero {
+    padding-top: 0.4rem;
+  }
+}

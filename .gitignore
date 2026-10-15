@@ -6,3 +6,6 @@ coverage/
 *.tsbuildinfo
 .env
 .env.*
+release-dist/
+generated_images/
+.site-build/

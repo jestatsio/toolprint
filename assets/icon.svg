@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="toolprint">
+  <defs>
+    <linearGradient id="seal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34D399"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#050B18"/>
+  <g transform="translate(22 18)">
+    <g fill="none" stroke="url(#seal)" stroke-linecap="round">
+      <path d="M14 64 A 37 37 0 1 1 88 64" stroke-width="5" opacity="0.9"/>
+      <path d="M23 64 A 28 28 0 1 1 79 64" stroke-width="4.5" opacity="0.55"/>
+      <path d="M32 64 A 19 19 0 1 1 70 64" stroke-width="4" opacity="0.32"/>
+    </g>
+    <rect x="19" y="59" width="64" height="41" rx="10" fill="url(#seal)"/>
+    <circle cx="51" cy="75" r="6" fill="#050B18"/>
+    <rect x="48.5" y="77.5" width="5" height="12" rx="2.5" fill="#050B18"/>
+  </g>
+</svg>

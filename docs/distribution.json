@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "status": "0.4.0 release in preparation; checksums below are from the local packaging run and are replaced with the published release assets at release time",
+  "version": "0.4.0",
+  "installationPage": "https://jestatsio.github.io/toolprint/install/",
+  "npm": { "package": "toolprint", "version": "0.4.0" },
+  "claudeDesktop": {
+    "filename": "toolprint-0.4.0.mcpb",
+    "sha256": "8d1ae9351cbf7b7d1f3072d2910be486a2d263026132337cce89e716a3371e53"
+  },
+  "claudeCode": {
+    "filename": "toolprint-0.4.0-claude-code.zip",
+    "sha256": "c53e85b827b6a4ba081ea9069fb2247c6d30e1f8e630ff307b6c736aec8170cb",
+    "marketplace": "toolprint",
+    "install": "/plugin install toolprint --marketplace jestatsio/toolprint"
+  },
+  "codex": {
+    "filename": "toolprint-0.4.0-codex.zip",
+    "sha256": "9017ca7c8c3cfb45758aab5523e14c3efd381aa32bf4e6131ae0d02617b265a8",
+    "marketplaceZip": "toolprint-0.4.0-marketplace.zip",
+    "marketplaceZipSha256": "8f00a3f5dd1310bc1b32f565a319e56430e5a40ea79491e41ef5a5309e7fa8c5",
+    "install": "codex plugin marketplace add jestatsio/toolprint && codex plugin add toolprint@toolprint"
+  },
+  "mcpRegistry": {
+    "name": "io.github.jestatsio/toolprint",
+    "status": "publishes automatically after npm via .github/workflows/mcp-registry.yml"
+  },
+  "officialDirectorySubmissions": "Anthropic plugin directory and OpenAI plugin directory are manual web portals; see distribution.md for the prepared submission checklists and current status"
+}

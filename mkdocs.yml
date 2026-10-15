@@ -1,0 +1,70 @@
+site_name: toolprint
+site_description: package-lock.json for MCP trust. Scan MCP servers and skill bundles for tool poisoning, secret leaks, and silent rug-pulls, with a committed, reviewable lockfile.
+site_url: https://jestatsio.github.io/toolprint/
+repo_url: https://github.com/jestatsio/toolprint
+repo_name: jestatsio/toolprint
+edit_uri: edit/main/docs/
+docs_dir: docs
+site_dir: .site-build
+exclude_docs: |
+  overrides/
+theme:
+  name: material
+  custom_dir: docs/overrides
+  logo: assets/icon.svg
+  favicon: assets/icon.svg
+  font: false
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      toggle: { icon: material/weather-night, name: Switch to dark mode }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      toggle: { icon: material/weather-sunny, name: Switch to light mode }
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+plugins:
+  - search
+extra_css:
+  - stylesheets/extra.css
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - admonition
+  - tables
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+nav:
+  - Home: index.md
+  - Install: install.md
+  - Get started: getting-started.md
+  - Guide:
+      - Targets: targets.md
+      - Checks: checks.md
+      - The lockfile: lockfile.md
+      - Skill bundles: skills.md
+      - Integrations: integrations.md
+      - Authentication: auth.md
+      - Probing tool output: probing.md
+      - Suppressions: suppressions.md
+      - Baselines: baseline.md
+      - CI: ci.md
+  - Reference:
+      - JSON schema: json-schema.md
+      - Branding: branding.md
+      - Distribution: distribution.md
+copyright: toolprint by JEStats · Apache-2.0 licensed

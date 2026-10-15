@@ -1,0 +1,36 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.jestatsio/toolprint",
+  "title": "toolprint by JEStats",
+  "description": "package-lock.json for MCP trust: scan MCP servers and skill bundles for tool poisoning, secret leaks, and silent rug-pulls against a committed lockfile.",
+  "repository": {
+    "url": "https://github.com/jestatsio/toolprint",
+    "source": "github"
+  },
+  "websiteUrl": "https://jestatsio.github.io/toolprint/",
+  "version": "0.4.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "toolprint",
+      "version": "0.4.0",
+      "transport": { "type": "stdio" },
+      "runtimeHint": "npx",
+      "packageArguments": [{ "type": "positional", "value": "serve" }],
+      "environmentVariables": [
+        {
+          "name": "TOOLPRINT_WORKDIR",
+          "description": "Default project directory for relative paths and lockfile discovery when a scan does not name one.",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "TOOLPRINT_BEARER",
+          "description": "Optional bearer token for authenticated remote MCP servers you ask toolprint to scan. Never written to the lockfile.",
+          "isRequired": false,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

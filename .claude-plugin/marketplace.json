@@ -1,0 +1,18 @@
+{
+  "name": "toolprint",
+  "owner": {
+    "name": "JEStats",
+    "url": "https://github.com/jestatsio"
+  },
+  "metadata": {
+    "description": "toolprint by JEStats: pin and verify the MCP servers and skills your agent trusts."
+  },
+  "plugins": [
+    {
+      "name": "toolprint",
+      "version": "0.4.0",
+      "description": "Scan MCP servers and skill bundles for tool poisoning, secret leaks, and silent rug-pulls, with a committed toolprint.lock.",
+      "source": "./"
+    }
+  ]
+}

@@ -45,6 +45,12 @@ toolprint deliberately connects to servers it does not trust and reads files it 
   Both are opt-in.
 - **Secrets:** detected credentials are redacted before they reach any output. Credentials you
   supply at runtime (`--bearer`, `--header`, `TOOLPRINT_*`) are never written to the lockfile.
+- **The MCP server (`toolprint serve`):** `scan` is read-only and `pin` writes exactly one
+  file, the lockfile; `pin` is annotated as a write so hosts can ask first. Tool arguments can
+  name a stdio target, which executes a local command — the same thing that happens when your
+  agent uses that server — so a scan should only ever point at servers the user already
+  intends to run. No credential is accepted as a tool argument, because arguments are visible
+  to the model; runtime credentials stay in the environment.
 - **Out of scope:** toolprint is not a runtime firewall. It does not stop a malicious server at the
   moment your agent calls it; it stops you from adopting one, and it makes a later change visible.
 
