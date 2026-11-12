@@ -47,7 +47,7 @@
     "package:plugins": "npm run build && node scripts/package-plugins.mjs"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.32.1",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "commander": "^15.0.0",
     "zod": "^4.4.3"
   },
